@@ -36,7 +36,6 @@ yarn-error.log*
 
 # tool config
 .serena/
-.agents/
 skills-lock.json
 
 # vercel
