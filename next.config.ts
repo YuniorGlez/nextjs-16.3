@@ -4,9 +4,6 @@ const nextConfig: NextConfig = {
   logging: {
     browserToTerminal: "error",
   },
-  experimental: {
-    turbopackFileSystemCacheForBuild: true,
-  },
 };
 
 export default nextConfig;

@@ -22,7 +22,7 @@ Vercel. Clona este repo y adáptalo a las necesidades del proyecto concreto.
 
 | Capa | Tecnología | Versión |
 |------|-----------|---------|
-| Framework | Next.js (App Router, Turbopack) | 16.3.0-preview.5 |
+| Framework | Next.js (App Router, Turbopack) | 16.3.0 |
 | UI | React + Tailwind CSS | 19.2.4 / v4 |
 | Lenguaje | TypeScript | 5.9.x |
 | BD | NeonDB (PostgreSQL serverless) | @neondatabase/serverless 1.x |
