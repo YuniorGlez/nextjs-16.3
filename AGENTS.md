@@ -24,7 +24,7 @@ Vercel. Clona este repo y adáptalo a las necesidades del proyecto concreto.
 |------|-----------|---------|
 | Framework | Next.js (App Router, Turbopack) | 16.3.0 |
 | UI | React + Tailwind CSS | 19.2.4 / v4 |
-| Lenguaje | TypeScript | 5.9.x |
+| Lenguaje | TypeScript | 7.0.x |
 | BD | NeonDB (PostgreSQL serverless) | @neondatabase/serverless 1.x |
 | Analytics | Google Analytics 4 (gtag) | vía next/script |
 | Package Manager | Bun | 1.3.x |
@@ -33,12 +33,25 @@ Vercel. Clona este repo y adáptalo a las necesidades del proyecto concreto.
 ## Comandos
 
 ```bash
-bun run dev        # servidor de desarrollo (Turbopack)
-bun run build      # build de producción
-bun run start      # servidor de producción
-bun run lint       # ESLint
-bun run typecheck  # tsc --noEmit
+bun run dev          # servidor de desarrollo (Turbopack)
+bun run build        # build de producción
+bun run start        # servidor de producción
+bun run lint         # oxlint (15 ficheros, ~24ms)
+bun run typecheck    # tsc --noEmit (TS7)
+bun run test         # vitest run
+bun run test:coverage # vitest con umbral de cobertura ≥80%
 ```
+
+## Verificación por fichero (single-file)
+
+Cuando un cambio afecte a un solo fichero y no haga falta el typecheck completo:
+
+```bash
+bunx oxlint <fichero>                       # lint de un fichero (p.ej. bunx oxlint src/lib/site.ts)
+bunx tsc@7 --noEmit --checkers 4            # typecheck global (TS7 no soporta single-file con project; ~2s con 4 workers)
+```
+
+Antes de dar una tarea por terminada: `bun run test` + `bunx tsc@7 --noEmit --checkers 4`.
 
 ## Arquitectura
 

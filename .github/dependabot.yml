@@ -1,0 +1,17 @@
+# Dependabot configuration
+
+version: 2
+updates:
+  - package-ecosystem: "npm" # soporta bun.lock
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    groups:
+      dependencies:
+        dependency-type: "production"
+      dev-dependencies:
+        dependency-type: "development"
+    commit-message:
+      prefix: "chore(deps)"

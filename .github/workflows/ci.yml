@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main, completo]
+  pull_request:
+
+jobs:
+  quality-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies (frozen lockfile)
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck (TypeScript 7, multithread)
+        run: bunx tsc@7 --noEmit --checkers 4
+
+      - name: Lint (oxlint)
+        run: bun run lint
+
+      - name: Test + coverage (≥80%)
+        run: bun run test:coverage
+
+      - name: Dependency audit
+        run: bun audit
+
+      - name: Build
+        run: bun run build
