@@ -1,0 +1,38 @@
+openapi: 3.0.3
+info:
+  title: Next.js Base API
+  version: 1.0.0
+  description: >
+    API de la plantilla whitelabel SQUAADS. Por defecto solo expone el
+    health check; los proyectos derivados añaden sus rutas aquí y mantienen
+    esta spec al día.
+paths:
+  /api/health:
+    get:
+      summary: Health check del servicio
+      description: >
+        Devuelve el estado del servicio y de la base de datos
+        (up / down / unconfigured cuando no hay DATABASE_URL).
+      operationId: getHealth
+      responses:
+        "200":
+          description: Estado del servicio
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, db, timestamp]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        db:
+          type: string
+          enum: [up, down, unconfigured]
+        timestamp:
+          type: string
+          format: date-time
