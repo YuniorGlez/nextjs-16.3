@@ -47,8 +47,8 @@ bun run test:coverage # vitest con umbral de cobertura ≥80%
 Cuando un cambio afecte a un solo fichero y no haga falta el typecheck completo:
 
 ```bash
-bunx oxlint <fichero>                            # lint de un fichero (p.ej. bunx oxlint src/lib/site.ts)
-bunx tsc@7 --noEmit <fichero>                    # typecheck de un fichero sin project (p.ej. bunx tsc@7 --noEmit src/lib/site.ts)
+bunx oxlint <fichero>                            # lint de un fichero (p.ej. `bunx oxlint src/lib/site.ts`)
+bunx tsc@7 --noEmit <fichero>                    # typecheck de un fichero sin project (p.ej. `bunx tsc@7 --noEmit src/lib/site.ts`)
 bunx tsc@7 --noEmit --checkers 4                 # typecheck global (proyecto completo, ~2s con 4 workers)
 ```
 
