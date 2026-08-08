@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bunx --no-install oxlint --fix \"$CLAUDE_FILE_PATH\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "printf '%s' \"$CLAUDE_INPUT\" | grep -qE 'rm -rf /|sudo rm -rf|git push --force' && echo 'BLOCKED: destructive command' && exit 2 || exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -15,6 +15,21 @@ en Vercel. Clona este repo y adáptalo a las necesidades del proyecto concreto.
 - **Bun** como package manager
 - **Vercel** para deploy
 
+## Diseño y arquitectura
+
+El design rationale completo (precondiciones, invariantes, decisiones y
+trade-offs) está en [`docs/design/design.md`](docs/design/design.md). Resumen:
+
+- **Por qué Bun**: es el package manager más rápido para Next.js; el
+  trade-off es un ecosistema con adopción menor que npm, aceptado para una
+  plantilla whitelabel. Instead of un segundo lockfile, `bun.lock` es la
+  única fuente de verdad y CI instala con `--frozen-lockfile`.
+- **Invariante principal**: `src/lib/site.ts` es el single source of truth
+  de SEO. Esta invariante debe mantenerse en todos los proyectos derivados.
+- **Por qué NeonDB**: Postgres serverless vía HTTP elimina la
+  infraestructura de connection pooling. La consecuencia asumida es ~100ms
+  de cold start en la primera query, aceptable para sitios de contenido.
+
 ## Comenzar
 
 ```bash

@@ -4,6 +4,7 @@
 /node_modules
 /.pnp
 .pnp.*
+.npm/
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
@@ -19,10 +20,17 @@
 
 # production
 /build
+/dist
+
+# typescript
+*.tsbuildinfo
 
 # misc
 .DS_Store
 *.pem
+*.log
+*.swp
+*.swo
 
 # debug
 npm-debug.log*
@@ -37,6 +45,10 @@ yarn-error.log*
 # tool config
 .serena/
 skills-lock.json
+
+# ide
+.vscode/
+.idea/
 
 # vercel
 .vercel

@@ -127,3 +127,21 @@ referencia al trabajar con las tecnologías correspondientes.
 - `nextjs-app-router-patterns` — patrones del App Router de Next.js
 - `tailwind-design-system` — sistema de diseño con Tailwind CSS
 - `neon-postgres` — mejores prácticas de Neon PostgreSQL
+
+## Pattern References
+
+Reference implementations for common change types. Copy-modify these instead
+of writing from scratch:
+
+- **New page or route**: use `src/app/page.tsx` as a template; see
+  `src/app/layout.tsx` for the metadata conventions.
+- **New component**: follow the pattern in
+  `.agents/skills/tailwind-design-system`; example in
+  `src/components/cookie-banner.tsx`.
+- **New API endpoint (serverless)**: follow the pattern in
+  `.agents/skills/neon-postgres`; the query helper is in `src/lib/db.ts`
+  (see `src/lib/db.ts` for the `sql` tagged template).
+- **New analytics event**: based on `src/components/analytics.tsx`; the
+  pattern in `src/components/analytics.tsx` is `trackEvent(name, params)`.
+- **New SEO metadata or sitemap entry**: based on `src/lib/site.ts`
+  (reference implementation for all SEO output).
