@@ -25,7 +25,7 @@ jobs:
         run: bun run lint
 
       - name: Test + coverage (≥80%)
-        run: bun run test:coverage
+        run: bunx vitest run --coverage
 
       - name: Dependency audit
         run: bun audit
