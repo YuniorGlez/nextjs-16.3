@@ -155,3 +155,6 @@ El base incluye un CMS admin en /admin (panel oscuro con sidebar, dashboard, bui
 - Vercel Blob (subir imagenes): token BLOB_READ_WRITE_TOKEN via vercel blob create-store. Endpoint src/app/api/upload/route.ts ya listo (protegido con ADMIN). next.config.ts ya tiene remotePatterns de *.blob.vercel-storage.com.
 - Subida desde cliente: POST multipart a /api/upload devuelve {url}.
 - Skill de referencia: vercel-blob.
+
+- Branding desde el CMS: /admin/estilo guarda `settings.branding` (primary, font, radius). La web debe inyectar `brandingCss(settings.branding)` (`src/lib/branding.ts`) como <style> para repintar color/tipografia/radio (override de clases Tailwind amber).
+- Formulario de contacto con email: componente `src/components/contact-form.tsx` POSTea JSON a `/api/contact`, que envia con Resend (`RESEND_API_KEY` env). Destinatario `settings.contacto.email` o env `RESEND_TO`; remitente `RESEND_FROM` o sandbox. Anadir RESEND_API_KEY/RESEND_TO al .env.local y a Vercel.

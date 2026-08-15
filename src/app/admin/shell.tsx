@@ -104,6 +104,7 @@ const MENU = "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01";
 const CONTACT = "M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.8a2 2 0 0 1-.4 2.1L8 10a16 16 0 0 0 6 6l1.4-1.4a2 2 0 0 1 2.1-.4c.8.3 1.9.6 2.8.7a2 2 0 0 1 1.7 2Z";
 const SUN = "M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10ZM12 21v-2M12 5V3M21 12h-2M5 12H3M18 6l-2 2M8 8 6 6M18 18l-2-2M8 16l-2 2";
 const LAYOUT = "M3 3h18v6H3zM3 11h9v8H3zM14 11h7v8h-7z";
+const PALETTE = "M12 3a9 9 0 1 0 .1 18c1.6 0 2.5-1.3 2.5-2.6 0-1-.5-1.9-1.4-2.7-.9-.8-1.3-1.7-1.3-2.5 0-1.2.9-2 2.3-2h1.4c2.2 0 3.4-1.4 3.4-3.6C19.9 5 16.4 3 12 3Z";
 const PUB = "M14 3v5a2 2 0 0 0 2 2h5M14 3h-7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z M14 3v6h6";
 const SIGNOUT = "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9";
 const LEFT = "M15 6l-6 6 6 6";
@@ -116,6 +117,7 @@ const NAV = [
   { href: "/admin/carta", label: "Carta y precios", icon: MENU },
   { href: "/admin/contacto", label: "Contacto", icon: CONTACT },
   { href: "/admin/contenido", label: "Textos y héroe", icon: SUN },
+  { href: "/admin/estilo", label: "Estilo y marca", icon: PALETTE },
 ].map((n) => ({ ...n }));
 
 const SIDEBAR_KEY = "bellavista:admin:sidebar";
@@ -188,6 +190,7 @@ const SEG_LABELS: Record<string, string> = {
   contacto: "Contacto",
   contenido: "Textos y héroe",
   landing: "Landing (builder)",
+  estilo: "Estilo y marca",
 };
 
 function Topbar() {

@@ -28,6 +28,7 @@ const settings: Record<string, unknown> = {
     telefono: "",
     telefonoUrl: "",
     whatsapp: "",
+    email: "",
     direccion: "",
     localidad: "",
   },
@@ -63,6 +64,7 @@ const settings: Record<string, unknown> = {
     { key: "galeria", visible: true },
     { key: "contacto", visible: true },
   ],
+  branding: { primary: "#f59e0b", font: "playfair", radius: 18 },
 };
 
 for (const [k, v] of Object.entries(settings)) {
