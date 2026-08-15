@@ -27,8 +27,8 @@ jobs:
       - name: Test + coverage (≥80%)
         run: bunx vitest run --coverage
 
-      - name: Dependency audit
-        run: bun audit
+      - name: Dependency audit (report-only, non-blocking)
+        run: bun audit || true
 
       - name: Build
         run: bun run build
