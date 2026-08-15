@@ -123,7 +123,7 @@ const NAV = [
 const SIDEBAR_KEY = "bellavista:admin:sidebar";
 const INIT_SCRIPT = `var p=document.currentScript.parentElement,s="expanded";try{if(localStorage.getItem("bellavista:admin:sidebar")==="rail")s="rail"}catch(e){}p.dataset.adminSidebar=s`;
 
-function Sidebar() {
+function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const ref = useRef<HTMLElement>(null);
@@ -150,9 +150,9 @@ function Sidebar() {
     exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
 
   return (
-    <aside className="admin-sidebar" ref={ref}>
+    <aside className={`admin-sidebar${open ? " admin-sidebar--open" : ""}`} ref={ref}>
       <div className="admin-sidebar-logo">
-        <Link href="/admin" aria-label="Bella Vista — Panel">
+        <Link href="/admin" aria-label="Bella Vista — Panel" onClick={onClose}>
           <span className="admin-sidebar-logo-mark" aria-hidden>🏔️</span>
           <span className="admin-sidebar-logo-text">
             Bella Vista
@@ -162,7 +162,7 @@ function Sidebar() {
       </div>
       <nav className="admin-nav">
         {NAV.map((n) => (
-          <Link key={n.href} href={n.href} data-tooltip={n.label}
+          <Link key={n.href} href={n.href} data-tooltip={n.label} onClick={onClose}
             className={`admin-nav-item ${active(n.href) ? "admin-nav-item--active" : ""}`}
             aria-current={active(n.href) ? "page" : undefined}>
             <span className="admin-nav-icon"><Icon d={n.icon} /></span>
@@ -171,7 +171,7 @@ function Sidebar() {
         ))}
       </nav>
       <div className="admin-sidebar-footer">
-        <a href="/" className="admin-nav-item" target="_blank" rel="noopener noreferrer" data-tooltip="Ver la web">
+        <a href="/" className="admin-nav-item" target="_blank" rel="noopener noreferrer" data-tooltip="Ver la web" onClick={onClose}>
           <span className="admin-nav-icon"><Icon d={PUB} /></span>
           <span className="admin-nav-label">Ver la web</span>
         </a>
@@ -193,7 +193,7 @@ const SEG_LABELS: Record<string, string> = {
   estilo: "Estilo y marca",
 };
 
-function Topbar() {
+function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   const pathname = usePathname();
   const { dirty, saving, submit } = useAdminSave();
   const [log, setLog] = useState(false);
@@ -213,6 +213,10 @@ function Topbar() {
 
   return (
     <header className="admin-topbar">
+      <button type="button" className="admin-topbar-menu-btn" onClick={onMenuClick}
+        aria-label="Abrir menú">
+        <Icon d={MENU} size={20} />
+      </button>
       <nav className="admin-topbar-crumb" aria-label="Ruta">
         {segments.length === 0 ? (
           <b aria-current="page">Panel</b>
@@ -252,20 +256,22 @@ function Topbar() {
 
 /* ================= Shell ================= */
 export function AdminShell({ children }: { children: ReactNode }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
   return (
     <ToastProvider>
       <SaveProvider>
         <div className="admin-shell" suppressHydrationWarning>
           <script dangerouslySetInnerHTML={{ __html: INIT_SCRIPT }} />
-          <div className="admin-desktop-guard" role="status">
-            <div className="admin-desktop-guard-logo" aria-hidden>🏔️</div>
-            <h1>El panel requiere una pantalla de escritorio</h1>
-            <p>Accede desde un dispositivo con pantalla de al menos 1024 px de ancho para gestionar la web de Bella Vista.</p>
-            <a href="/">← Volver al sitio público</a>
-          </div>
-          <Sidebar />
+          <button
+            type="button"
+            className={`admin-nav-backdrop${mobileOpen ? " admin-nav-backdrop--visible" : ""}`}
+            onClick={() => setMobileOpen(false)}
+            aria-label="Cerrar menú"
+            tabIndex={mobileOpen ? 0 : -1}
+          />
+          <Sidebar open={mobileOpen} onClose={() => setMobileOpen(false)} />
           <div className="admin-main">
-            <Topbar />
+            <Topbar onMenuClick={() => setMobileOpen(true)} />
             <main className="admin-content">{children}</main>
           </div>
         </div>

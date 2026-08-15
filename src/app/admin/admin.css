@@ -770,47 +770,106 @@
   margin-bottom: 8px;
 }
 
-/* ---------------- Desktop guard ---------------- */
-.admin-desktop-guard {
+/* ---------------- Responsive / mobile ---------------- */
+.admin-topbar-menu-btn {
   display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  background: transparent;
+  color: var(--admin-text-secondary);
+  cursor: pointer;
+  outline: none;
 }
+.admin-topbar-menu-btn:hover {
+  background: var(--admin-raised);
+  color: var(--admin-text-primary);
+}
+
+.admin-nav-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(0, 0, 0, 0.55);
+  border: none;
+  cursor: pointer;
+}
+
 @media (max-width: 1023px) {
-  .admin-desktop-guard {
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
+  .admin-topbar-menu-btn {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 14px;
-    padding: 32px;
-    text-align: center;
-    background: var(--admin-bg);
-    color: var(--admin-text-primary);
-    font-family: var(--font-geist-sans), system-ui, sans-serif;
   }
-  .admin-desktop-guard-logo {
-    display: grid;
-    place-items: center;
-    width: 52px;
-    height: 52px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, var(--admin-accent-bright), var(--admin-accent));
-    color: var(--admin-on-accent);
-    font-weight: 700;
-    font-size: 24px;
+  .admin-nav-backdrop {
+    display: block;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--admin-transition);
   }
-  .admin-desktop-guard h1 {
-    font-size: 1.2rem;
+  .admin-nav-backdrop--visible {
+    opacity: 1;
+    pointer-events: auto;
   }
-  .admin-desktop-guard p {
-    color: var(--admin-text-secondary);
-    font-size: 0.9rem;
-    max-width: 420px;
-    line-height: 1.5;
+
+  .admin-sidebar {
+    transform: translateX(-100%);
+    transition: transform var(--admin-transition-slow);
   }
-  .admin-desktop-guard a {
-    color: var(--admin-accent-bright);
+  .admin-sidebar--open {
+    transform: translateX(0);
+  }
+
+  /* En móvil el sidebar se muestra siempre expandido (ignora el modo rail) */
+  .admin-sidebar,
+  .admin-shell[data-admin-sidebar="rail"] .admin-sidebar {
+    width: var(--admin-sidebar-width);
+  }
+  .admin-shell[data-admin-sidebar="rail"] .admin-sidebar-logo-text,
+  .admin-shell[data-admin-sidebar="rail"] .admin-nav-label {
+    width: auto;
+    opacity: 1;
+  }
+  .admin-shell[data-admin-sidebar="rail"] .admin-nav-item {
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 0 11px;
+  }
+
+  .admin-main,
+  .admin-shell[data-admin-sidebar="rail"] .admin-main {
+    margin-left: 0;
+  }
+  .admin-content {
+    padding: var(--admin-space-md);
+  }
+  .admin-editor-layout {
+    grid-template-columns: 1fr;
+  }
+  .admin-preview-pane {
+    position: static;
+  }
+  .admin-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-sub-item {
+    grid-template-columns: 1fr;
+  }
+  .admin-toast-viewport {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+  }
+  .admin-toast {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+  }
+  .admin-kpi-breakdown {
+    flex-wrap: wrap;
+    gap: 16px;
   }
 }

@@ -24,6 +24,7 @@ Vercel. Clona este repo y adáptalo a las necesidades del proyecto concreto.
 |------|-----------|---------|
 | Framework | Next.js (App Router, Turbopack) | 16.3.0 |
 | UI | React + Tailwind CSS | 19.2.4 / v4 |
+| Animación | GSAP (+ ScrollTrigger) | 3.15.x |
 | Lenguaje | TypeScript | 7.0.x |
 | BD | NeonDB (PostgreSQL serverless) | @neondatabase/serverless 1.x |
 | Analytics | Google Analytics 4 (gtag) | vía next/script |
@@ -145,11 +146,25 @@ of writing from scratch:
   pattern in `src/components/analytics.tsx` is `trackEvent(name, params)`.
 - **New SEO metadata or sitemap entry**: based on `src/lib/site.ts`
   (reference implementation for all SEO output).
-## CMS Admin (incluido) + Vercel Blob
 
-El base incluye un CMS admin en /admin (panel oscuro con sidebar, dashboard, builder de landing, carta/prices opcional, contacto y textos).
+## GSAP (animaciones) — SIEMPRE presente
 
-- Acceso: /admin con password = env ADMIN_PASSWORD (por defecto Temporal1234!). Poner ADMIN_PASSWORD y DATABASE_URL en .env.local y en Vercel.
+- `gsap` está en `package.json`. El wrapper `src/components/site-animations.tsx`
+  (client component) registra ScrollTrigger y anima por atributos `data-*`.
+- En la página pública (server component) envuelve TODO el contenido:
+  `<SiteAnimations>…tu landing…</SiteAnimations>`.
+- Marcadores disponibles: `data-hero` (entrada del hero), `data-reveal`
+  (revelado al hacer scroll), `data-stagger` (aparición escalonada de tarjetas),
+  `data-hero-bg` (parallax sutil del fondo). Respeta `prefers-reduced-motion`.
+- Referencia completa del patrón conectado al CMS: `src/app/page.tsx` del
+  proyecto `restaurante-bellavista`.
+
+## CMS Admin (incluido) + Vercel Blob — SIEMPRE presente y OBLIGATORIO
+
+El base incluye un CMS admin en /admin (panel oscuro con sidebar, dashboard, builder de landing, carta/prices opcional, contacto y textos) y es **responsive** (menú hamburguesa en móvil, sidebar drawer, editor en una columna).
+
+- **NeonDB es OBLIGATORIA en TODOS los proyectos** (aunque la web sea sencilla): en ella se guardan los textos de la landing y las imágenes, editables desde el CMS. No existe la opción "sin base de datos".
+- Acceso: /admin con password = env ADMIN_PASSWORD (por defecto `Temporal1234!`). Poner ADMIN_PASSWORD y DATABASE_URL en .env.local y en Vercel.
 - Sembrar BD: bun --env-file=.env.local scripts/seed.ts (crea tablas categories/items/settings + ajustes del builder).
 - Datos editables desde el panel (hero, destacados, numeros, local, galeria, layout) guardados en settings; la web debe leerlos y renderizar por orden/visibilidad (ver src/app/page.tsx del proyecto ejemplo restaurante-bellavista).
 - Vercel Blob (subir imagenes): token BLOB_READ_WRITE_TOKEN via vercel blob create-store. Endpoint src/app/api/upload/route.ts ya listo (protegido con ADMIN). next.config.ts ya tiene remotePatterns de *.blob.vercel-storage.com.
