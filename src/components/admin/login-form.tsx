@@ -35,9 +35,9 @@ export function LoginForm() {
       <div className="w-full max-w-sm rounded-3xl border border-zinc-800 bg-zinc-900/60 p-8">
         <div className="mb-6 text-center">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-amber-500 text-2xl">
-            🏔️
+            ⚙️
           </div>
-          <h1 className="font-serif text-2xl font-bold">Panel de Bella Vista</h1>
+          <h1 className="font-serif text-2xl font-bold">Panel de administración</h1>
           <p className="mt-1 text-sm text-zinc-500">Introduce la contraseña para editar la web.</p>
         </div>
         <form onSubmit={submit} className="space-y-4">

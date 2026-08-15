@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   if (!to) {
     return NextResponse.json({ error: "No hay destinatario configurado." }, { status: 400 });
   }
-  const from = process.env.RESEND_FROM || "Web Bella Vista <onboarding@resend.dev>";
+  const from = process.env.RESEND_FROM || "Web <onboarding@resend.dev>";
 
   const html = [
     `<h3>Nuevo mensaje desde la web</h3>`,

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { saveSettings } from "@/app/admin/actions";
 import { useAdminSave, useToast } from "@/app/admin/shell";
 import { BlobUploader } from "@/components/admin/blob-uploader";
+import { siteConfig } from "@/lib/site";
 import type { MenuCategory } from "@/lib/data";
 
 type T = Record<string, string>;
@@ -131,9 +132,9 @@ export function LandingBuilder({ settings, menu }: { settings: Record<string, un
             }
           >
             <div className="px-4">
-              <div className="text-[10px] uppercase tracking-[.3em] text-amber-400">{hero.titulo || "Bar · Cafetería"}</div>
-              <div className="font-serif text-2xl font-bold">Bella <span className="text-amber-400">Vista</span></div>
-              <div className="mt-1 text-xs text-zinc-300">{hero.subtitulo || "Bocadillos, tapas y cafés en Puntallana"}</div>
+              <div className="text-[10px] uppercase tracking-[.3em] text-amber-400">{hero.titulo || "Etiqueta"}</div>
+              <div className="font-serif text-2xl font-bold">{siteConfig.name}</div>
+              <div className="mt-1 text-xs text-zinc-300">{hero.subtitulo || "Subtítulo de tu negocio"}</div>
             </div>
           </div>
         </div>
@@ -166,9 +167,9 @@ export function LandingBuilder({ settings, menu }: { settings: Record<string, un
     if (key === "local")
       return (
         <div className="rounded-xl border border-zinc-800 p-4">
-          <div className="text-[10px] uppercase tracking-widest text-amber-500">{local.etiqueta || "Un lugar con vistas"}</div>
-          <div className="font-serif text-lg font-bold">{local.titulo || "Más que un bar, tu punto de encuentro"}</div>
-          <p className="mt-1 text-[11px] text-zinc-400">{local.parrafo1 || "Descripción del local…"}</p>
+          <div className="text-[10px] uppercase tracking-widest text-amber-500">{local.etiqueta || "Tu etiqueta"}</div>
+          <div className="font-serif text-lg font-bold">{local.titulo || "Tu titular"}</div>
+          <p className="mt-1 text-[11px] text-zinc-400">{local.parrafo1 || "Descríbelo en una línea…"}</p>
           <div className="mt-2 grid grid-cols-4 gap-1">
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="rounded border border-zinc-800 p-1 text-center">
@@ -182,7 +183,7 @@ export function LandingBuilder({ settings, menu }: { settings: Record<string, un
     if (key === "galeria")
       return (
         <div className="rounded-xl border border-zinc-800 p-4">
-          <div className="text-center text-sm font-semibold">{galeria.titulo || "Un vistazo a Bella Vista"}</div>
+          <div className="text-center text-sm font-semibold">{galeria.titulo || "Un vistazo a tu proyecto"}</div>
           {galFotos.length === 0 ? (
             <div className="mt-2 text-center text-[10px] text-zinc-500">Sube fotos para llenar la galería.</div>
           ) : (
@@ -198,7 +199,7 @@ export function LandingBuilder({ settings, menu }: { settings: Record<string, un
     if (key === "contacto")
       return (
         <div className="rounded-xl border border-zinc-800 p-4 text-center">
-          <div className="font-serif text-lg font-bold">Date un paseo y ven a vernos</div>
+          <div className="font-serif text-lg font-bold">Hablemos</div>
           <div className="mt-2 flex justify-center gap-2 text-[10px] text-zinc-400">📞 · 💬 · 📍</div>
         </div>
       );

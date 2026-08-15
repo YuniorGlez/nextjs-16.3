@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { siteConfig } from "@/lib/site";
 import {
   createContext,
   useCallback,
@@ -120,8 +121,8 @@ const NAV = [
   { href: "/admin/estilo", label: "Estilo y marca", icon: PALETTE },
 ].map((n) => ({ ...n }));
 
-const SIDEBAR_KEY = "bellavista:admin:sidebar";
-const INIT_SCRIPT = `var p=document.currentScript.parentElement,s="expanded";try{if(localStorage.getItem("bellavista:admin:sidebar")==="rail")s="rail"}catch(e){}p.dataset.adminSidebar=s`;
+const SIDEBAR_KEY = `${siteConfig.name}:admin:sidebar`;
+const INIT_SCRIPT = `var p=document.currentScript.parentElement,s="expanded";try{if(localStorage.getItem(${JSON.stringify(SIDEBAR_KEY)})==="rail")s="rail"}catch(e){}p.dataset.adminSidebar=s`;
 
 function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
@@ -152,10 +153,10 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <aside className={`admin-sidebar${open ? " admin-sidebar--open" : ""}`} ref={ref}>
       <div className="admin-sidebar-logo">
-        <Link href="/admin" aria-label="Bella Vista — Panel" onClick={onClose}>
-          <span className="admin-sidebar-logo-mark" aria-hidden>🏔️</span>
+        <Link href="/admin" aria-label={`${siteConfig.name} — Panel`} onClick={onClose}>
+          <span className="admin-sidebar-logo-mark" aria-hidden>⚙️</span>
           <span className="admin-sidebar-logo-text">
-            Bella Vista
+            {siteConfig.name}
             <span className="admin-sidebar-label">Backoffice</span>
           </span>
         </Link>

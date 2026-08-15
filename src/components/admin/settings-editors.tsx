@@ -64,7 +64,7 @@ export function ContactoEditor({ contacto }: { contacto: Record<string, string> 
     <div>
       <div className="admin-page-header">
         <h1>Datos de contacto</h1>
-        <p>Estos datos aparecen en el botón «Reservar» y en la sección de contacto. Trace «Guardar» para aplicarlos.</p>
+        <p>Estos datos aparecen en la sección de contacto de la web. Pulsa «Guardar» para aplicarlos.</p>
       </div>
       <section className="admin-section">
         <div className="admin-panel-card p-5">

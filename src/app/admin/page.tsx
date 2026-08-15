@@ -52,7 +52,7 @@ export default async function AdminPage() {
     <>
       <div className="admin-page-header">
         <h1>Panel de administración</h1>
-        <p>Bienvenido al centro de control de Bella Vista. Edita la carta, los precios, los datos de contacto y los textos de la web.</p>
+        <p>Bienvenido al centro de control. Edita la carta, los precios, los datos de contacto y los textos de la web.</p>
       </div>
 
       <section className="admin-section">
