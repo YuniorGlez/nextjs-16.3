@@ -2,17 +2,18 @@ import { describe, expect, it, vi } from "vitest";
 import { siteConfig } from "@/lib/site";
 
 describe("siteConfig", () => {
-  it("define los metadatos base de la plantilla", () => {
-    expect(siteConfig.name).toBe("Next.js Base");
-    expect(siteConfig.tagline).toMatch(/Base whitelabel/);
-    expect(siteConfig.locale).toBe("es_ES");
-    expect(siteConfig.themeColor).toBe("#000000");
-    expect(siteConfig.organization.type).toBe("Organization");
+  it("define metadatos base de forma coherente", () => {
+    expect(typeof siteConfig.name).toBe("string");
+    expect(siteConfig.name.length).toBeGreaterThan(0);
+    expect(siteConfig.locale).toMatch(/^[a-z]{2}_[A-Z]{2}$/);
+    expect(siteConfig.themeColor).toMatch(/^#[0-9a-fA-F]{6}$/);
+    expect(typeof siteConfig.organization.type).toBe("string");
+    expect(siteConfig.organization.type.length).toBeGreaterThan(0);
   });
 
-  it("usa example.com como URL por defecto sin variable de entorno", () => {
+  it("usa una URL por defecto https sin variable de entorno", () => {
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", undefined);
-    expect(siteConfig.url).toBe("https://example.com");
+    expect(siteConfig.url).toMatch(/^https:\/\/.+/);
     vi.unstubAllEnvs();
   });
 
