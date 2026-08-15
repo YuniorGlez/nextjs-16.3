@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
   logging: {
     browserToTerminal: "error",
   },
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "*.blob.vercel-storage.com" },
+    ],
+  },
 };
 
 export default nextConfig;

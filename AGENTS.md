@@ -145,3 +145,13 @@ of writing from scratch:
   pattern in `src/components/analytics.tsx` is `trackEvent(name, params)`.
 - **New SEO metadata or sitemap entry**: based on `src/lib/site.ts`
   (reference implementation for all SEO output).
+## CMS Admin (incluido) + Vercel Blob
+
+El base incluye un CMS admin en /admin (panel oscuro con sidebar, dashboard, builder de landing, carta/prices opcional, contacto y textos).
+
+- Acceso: /admin con password = env ADMIN_PASSWORD (por defecto Temporal1234!). Poner ADMIN_PASSWORD y DATABASE_URL en .env.local y en Vercel.
+- Sembrar BD: bun --env-file=.env.local scripts/seed.ts (crea tablas categories/items/settings + ajustes del builder).
+- Datos editables desde el panel (hero, destacados, numeros, local, galeria, layout) guardados en settings; la web debe leerlos y renderizar por orden/visibilidad (ver src/app/page.tsx del proyecto ejemplo restaurante-bellavista).
+- Vercel Blob (subir imagenes): token BLOB_READ_WRITE_TOKEN via vercel blob create-store. Endpoint src/app/api/upload/route.ts ya listo (protegido con ADMIN). next.config.ts ya tiene remotePatterns de *.blob.vercel-storage.com.
+- Subida desde cliente: POST multipart a /api/upload devuelve {url}.
+- Skill de referencia: vercel-blob.
