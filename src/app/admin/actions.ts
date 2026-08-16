@@ -9,13 +9,20 @@ import {
   isAdmin,
 } from "@/lib/auth";
 import {
+  getPageBySlug,
   removeCategory,
   removeItem,
+  removePage,
   saveMenu as saveMenuDb,
+  setPageVisibility,
   updateSettings,
   upsertCategory,
   upsertItem,
+  upsertPage,
+  type PageLayoutItem,
 } from "@/lib/data";
+import { slugify } from "@/lib/slug";
+import { PAGE_DEFAULT_LAYOUT } from "@/lib/sections";
 
 async function guard() {
   if (!(await isAdmin())) {
@@ -100,4 +107,79 @@ export async function saveSettings(partial: Record<string, unknown>) {
   await updateSettings(partial);
   revalidatePath("/admin");
   revalidatePath("/");
+}
+
+// ---------- Páginas (ruta /[slug]) ----------
+export type CreatePageState = { ok: boolean; error?: string };
+
+export async function createPage(
+  _prev: CreatePageState,
+  data: FormData,
+): Promise<CreatePageState> {
+  await guard();
+  const name = String(data.get("name") ?? "").trim();
+  const slugInput = String(data.get("slug") ?? "").trim();
+  const slug = slugify(slugInput) || slugify(name);
+  if (!name || !slug) {
+    return { ok: false, error: "Pon un nombre válido a la página." };
+  }
+  if (await getPageBySlug(slug)) {
+    return { ok: false, error: `Ya existe una página con la URL /${slug}.` };
+  }
+  const id = await upsertPage({
+    slug,
+    name,
+    visible: true,
+    seo: { title: "", description: "" },
+    content: {},
+    layout: PAGE_DEFAULT_LAYOUT,
+  });
+  revalidatePath("/admin/paginas");
+  revalidatePath("/");
+  redirect(`/admin/paginas/${id}`);
+}
+
+export async function updatePage(input: {
+  id: number;
+  name: string;
+  slug: string;
+  visible: boolean;
+  seo: Record<string, string>;
+  layout: PageLayoutItem[];
+  content: Record<string, unknown>;
+}) {
+  await guard();
+  const slug = slugify(input.slug) || slugify(input.name);
+  if (!slug) throw new Error("El slug no es válido.");
+  const other = await getPageBySlug(slug);
+  if (other && other.id !== input.id) {
+    throw new Error(`La URL /${slug} ya la usa otra página.`);
+  }
+  await upsertPage({
+    id: input.id,
+    slug,
+    name: input.name.trim() || "Página",
+    visible: input.visible,
+    seo: input.seo,
+    layout: input.layout,
+    content: input.content,
+  });
+  revalidatePath("/admin/paginas");
+  revalidatePath("/");
+  revalidatePath(`/${slug}`);
+}
+
+export async function togglePageVisibility(id: number, visible: boolean) {
+  await guard();
+  await setPageVisibility(id, visible);
+  revalidatePath("/admin/paginas");
+  revalidatePath("/");
+}
+
+export async function deletePageAction(id: number) {
+  await guard();
+  await removePage(id);
+  revalidatePath("/admin/paginas");
+  revalidatePath("/");
+  redirect("/admin/paginas");
 }

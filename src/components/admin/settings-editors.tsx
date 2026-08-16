@@ -202,3 +202,135 @@ function sel<T>(arr: T[], i: number, key: keyof T, val: string): T[] {
   copy[i] = { ...copy[i], [key]: val };
   return copy;
 }
+
+/* ---------------- SEO (metadata configurable desde el CMS) ---------------- */
+export function SeoEditor({ settings }: { settings: S }) {
+  const seo = (settings.seo ?? {}) as Record<string, string>;
+  const [draft, setDraft] = useState<S>({ ...seo });
+  const saveState = useSave(draft, "seo", () => draft);
+
+  function set(k: string, v: string) {
+    setDraft((d) => ({ ...d, [k]: v }));
+    saveState.setDirty(true);
+  }
+
+  return (
+    <div>
+      <div className="admin-page-header">
+        <h1>SEO de la web</h1>
+        <p>Configura el título, la descripción y las redes sociales que ven Google y otros buscadores. Déjalo vacío para usar los valores por defecto del proyecto.</p>
+      </div>
+      <section className="admin-section">
+        <div className="admin-panel-card p-5">
+          <h3 className="mb-1 font-semibold">Búsqueda (Google)</h3>
+          <p className="mb-4 text-xs text-zinc-500">Título: hasta ~60 caracteres. Descripción: hasta ~160 caracteres.</p>
+          <div className="admin-form-grid">
+            <Field label="Título SEO (title tag)">
+              <input className={inputCls} value={String(draft.title ?? "")} maxLength={70} placeholder="Nombre | Tagline" onChange={(e) => set("title", e.target.value)} />
+            </Field>
+            <Field label="Palabras clave (separadas por comas)">
+              <input className={inputCls} value={String(draft.keywords ?? "")} placeholder="palabra1, palabra2, palabra3" onChange={(e) => set("keywords", e.target.value)} />
+            </Field>
+            <Field label="Meta descripción">
+              <textarea className={`${inputCls} min-h-20`} value={String(draft.description ?? "")} maxLength={200} placeholder="Resumen de la web que aparece en los resultados." onChange={(e) => set("description", e.target.value)} />
+            </Field>
+          </div>
+        </div>
+
+        <div className="admin-panel-card p-5" style={{ marginTop: 16 }}>
+          <h3 className="mb-1 font-semibold">Redes sociales (Open Graph / Twitter)</h3>
+          <p className="mb-4 text-xs text-zinc-500">Cómo se ve el enlace al compartirlo en WhatsApp, X, LinkedIn, etc.</p>
+          <div className="admin-form-grid">
+            <Field label="Título para compartir">
+              <input className={inputCls} value={String(draft.ogTitle ?? "")} placeholder="Igual que el título SEO si lo dejas vacío" onChange={(e) => set("ogTitle", e.target.value)} />
+            </Field>
+            <Field label="Imagen para compartir (URL)">
+              <input className={inputCls} value={String(draft.ogImage ?? "")} placeholder="https://…/og-image.png (1200×630)" onChange={(e) => set("ogImage", e.target.value)} />
+            </Field>
+            <Field label="Descripción para compartir">
+              <textarea className={`${inputCls} min-h-20`} value={String(draft.ogDescription ?? "")} placeholder="Igual que la meta descripción si lo dejas vacío" onChange={(e) => set("ogDescription", e.target.value)} />
+            </Field>
+          </div>
+        </div>
+
+        <div className="admin-panel-card p-5" style={{ marginTop: 16 }}>
+          <h3 className="font-semibold">Vista previa en Google</h3>
+          <div className="mt-3 rounded-xl border border-white/10 bg-zinc-950 p-4">
+            <div className="text-xs text-emerald-400">{siteUrl()}</div>
+            <div className="mt-1 truncate text-lg text-blue-400">
+              {String(draft.title ?? "").trim() || "Nombre | Tagline"}
+            </div>
+            <div className="mt-1 text-sm text-zinc-400">
+              {String(draft.description ?? "").trim() || "Descripción por defecto del proyecto."}
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function siteUrl() {
+  if (typeof window === "undefined") return "";
+  return window.location.origin;
+}
+
+/* ---------------- Datos legales (para páginas de cookies/privacidad) ---------------- */
+const LEGAL_FIELDS: [string, string, string?][] = [
+  ["razonSocial", "Razón social de la empresa"],
+  ["cif", "NIF / CIF"],
+  ["direccion", "Domicilio fiscal"],
+  ["email", "Email legal (derechos RGPD)"],
+  ["telefono", "Teléfono"],
+  ["registro", "Inscripción registral (Registro Mercantil)"],
+  ["dominio", "Dominio público (sin https://)"],
+];
+
+export function LegalEditor({ settings }: { settings: S }) {
+  const legal = (settings.legal ?? {}) as Record<string, string>;
+  const [draft, setDraft] = useState<S>({ ...legal });
+  const saveState = useSave(draft, "legal", () => draft);
+
+  function set(k: string, v: string) {
+    setDraft((d) => ({ ...d, [k]: v }));
+    saveState.setDirty(true);
+  }
+
+  return (
+    <div>
+      <div className="admin-page-header">
+        <h1>Datos legales</h1>
+        <p>
+          Estos datos se usan para rellenar automáticamente las páginas de <b>Política de cookies</b> y{' '}
+          <b>Política de privacidad</b> donde aparecen los tokens{' '}
+          <code className="rounded bg-zinc-800 px-1 text-xs">{"{{empresa}}"}</code>,{' '}
+          <code className="rounded bg-zinc-800 px-1 text-xs">{"{{cif}}"}</code>,{' '}
+          <code className="rounded bg-zinc-800 px-1 text-xs">{"{{direccion}}"}</code>,{' '}
+          <code className="rounded bg-zinc-800 px-1 text-xs">{"{{email}}"}</code>,{' '}
+          <code className="rounded bg-zinc-800 px-1 text-xs">{"{{telefono}}"}</code>,{' '}
+          <code className="rounded bg-zinc-800 px-1 text-xs">{"{{registro}}"}</code> y{' '}
+          <code className="rounded bg-zinc-800 px-1 text-xs">{"{{dominio}}"}</code>.
+        </p>
+      </div>
+      <section className="admin-section">
+        <div className="admin-panel-card p-5">
+          <div className="admin-form-grid">
+            {LEGAL_FIELDS.map(([k, label]) => (
+              <Field key={k} label={label}>
+                <input
+                  className={inputCls}
+                  value={String(draft[k] ?? "")}
+                  placeholder="—"
+                  onChange={(e) => set(k, e.target.value)}
+                />
+              </Field>
+            ))}
+          </div>
+          <p className="mt-4 text-xs text-zinc-500">
+            Aparecen también en el pie de página (razón social y CIF). Pulsa «Guardar» para aplicar los cambios.
+          </p>
+        </div>
+      </section>
+    </div>
+  );
+}

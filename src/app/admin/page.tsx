@@ -47,6 +47,7 @@ export default async function AdminPage() {
   const totalItems = menu.reduce((a, c) => a + c.items.length, 0);
   const settingsCount = Object.keys(settings).length;
   const heroImg = (settings.hero as Record<string, string> | undefined)?.imagen ?? "";
+  const seoTitulo = (settings.seo as Record<string, string> | undefined)?.title ?? "";
 
   return (
     <>
@@ -62,6 +63,7 @@ export default async function AdminPage() {
           <KpiCard label="Platos y precios" value={totalItems} sub={totalItems ? "Items en total" : "Sin datos todavía"} tone="accent" />
           <KpiCard label="Datos de contacto" value={settingsCount > 0 ? "✓" : "—"} sub="Contacto y textos cargados" tone="success" />
           <KpiCard label="Imagen del héroe" value={heroImg ? "✓" : "—"} sub={heroImg ? "Configurada" : "Pon una imagen en Textos y héroe"} tone="success" />
+          <KpiCard label="Título SEO" value={seoTitulo ? "✓" : "—"} sub={seoTitulo ? "Configurado" : "Configúralo en SEO"} tone="accent" />
         </div>
       </section>
 
@@ -104,6 +106,7 @@ export default async function AdminPage() {
           <QuickAction href="/admin/carta" icon="📖" title="Editar la carta" desc="Añade o cambia categorías, platos y precios del menú." />
           <QuickAction href="/admin/contacto" icon="📞" title="Datos de contacto" desc="Teléfono, WhatsApp y dirección que se muestran en la web." />
           <QuickAction href="/admin/contenido" icon="🖼️" title="Textos e imagen del héroe" desc="Titular, subtítulo, destacados, números y la foto de arriba." />
+          <QuickAction href="/admin/seo" icon="🔍" title="SEO de la web" desc="Título, descripción y cómo se comparte la web en redes." />
         </div>
       </section>
 
@@ -142,6 +145,7 @@ export default async function AdminPage() {
             <li>Revisa la carta y ajusta precios en «Carta y precios».</li>
             <li>Comprueba los datos de contacto en «Contacto».</li>
             <li>Elige la imagen del héroe en «Textos y héroe».</li>
+            <li>Configura el título y la descripción en «SEO».</li>
           </ol>
         </div>
       </section>

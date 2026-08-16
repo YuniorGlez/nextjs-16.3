@@ -1,49 +1,64 @@
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { JsonLd } from "@/components/json-ld";
 import { SiteNav } from "@/components/site-nav";
 import { SiteAnimations } from "@/components/site-animations";
 import { brandingCss, normalizeBranding } from "@/lib/branding";
 import { normalizeLegal } from "@/lib/legal";
 import { siteConfig } from "@/lib/site";
-import type { MenuCategory } from "@/lib/data";
 import {
   LandingFooter,
   LandingSections,
   type ContactoContent,
   type LandingContent,
-  type SectionCfg,
 } from "@/components/landing-sections";
+import type { MenuCategory } from "@/lib/data";
 
-const DEFAULT_LAYOUT: SectionCfg[] = [
-  { key: "hero", visible: true },
-  { key: "destacados", visible: true },
-  { key: "numeros", visible: true },
-  { key: "local", visible: true },
-  { key: "galeria", visible: true },
-  { key: "testimonios", visible: true },
-  { key: "faq", visible: true },
-  { key: "cta", visible: true },
-  { key: "menu", visible: false },
-  { key: "contacto", visible: true },
-];
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
-export default async function Home() {
-  // La home se renderiza siempre: si la BD no responde, usa los defaults.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  try {
+    const { getPageBySlug } = await import("@/lib/data");
+    const page = await getPageBySlug(slug);
+    if (!page || !page.visible) return { title: "Página no encontrada" };
+    return {
+      title: page.seo.title || page.name,
+      description: page.seo.description || siteConfig.description,
+      alternates: { canonical: `/${page.slug}` },
+    };
+  } catch {
+    return { title: "Página no encontrada" };
+  }
+}
+
+export default async function SlugPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+
   let settings: Record<string, unknown> = {};
   let menu: MenuCategory[] = [];
   let pages: { slug: string; name: string; visible: boolean }[] = [];
+  let page: { slug: string; name: string; visible: boolean; layout: { key: string; visible?: boolean }[]; content: Record<string, unknown> } | null = null;
+
   try {
     const data = await import("@/lib/data");
-    [menu, settings, pages] = await Promise.all([data.getMenu(), data.getSettings(), data.getPages()]);
+    [settings, menu, pages] = await Promise.all([data.getSettings(), data.getMenu(), data.getPages()]);
+    page = await data.getPageBySlug(slug);
   } catch {
-    // BD no disponible — contenido por defecto
+    // BD no disponible
   }
 
-  const layout =
-    Array.isArray(settings.layout) && settings.layout.length
-      ? (settings.layout as SectionCfg[]).filter((s) => s.visible !== false)
-      : DEFAULT_LAYOUT.filter((s) => s.visible !== false);
+  if (!page || !page.visible) notFound();
 
-  const content = settings as unknown as LandingContent;
   const branding = normalizeBranding(settings.branding);
   const contacto = (settings.contacto ?? {}) as ContactoContent;
   const legal = normalizeLegal(settings.legal);
@@ -56,8 +71,8 @@ export default async function Home() {
       <SiteAnimations>
         <main>
           <LandingSections
-            layout={layout}
-            content={content}
+            layout={page.layout}
+            content={page.content as LandingContent}
             menu={menu}
             brandName={siteConfig.name}
             legal={legal}

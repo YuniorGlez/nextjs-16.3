@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 import { siteConfig } from "@/lib/site";
+import { getSeoSettings, parseKeywords } from "@/lib/seo";
 import { Providers } from "@/components/providers";
 
 const geistSans = Geist({
@@ -20,17 +21,26 @@ export async function generateMetadata(): Promise<Metadata> {
   const host = headerList.get("host") ?? "";
   const isProduction = host === siteConfig.productionHost;
 
+  // SEO del CMS (settings.seo) con fallback a siteConfig
+  const seo = await getSeoSettings();
+  const seoTitle = seo.title || `${siteConfig.name} | ${siteConfig.tagline}`;
+  const seoDescription = seo.description || siteConfig.description;
+  const seoKeywords = seo.keywords ? parseKeywords(seo.keywords) : [...siteConfig.keywords];
+  const ogTitle = seo.ogTitle || seoTitle;
+  const ogDescription = seo.ogDescription || seoDescription;
+  const ogImage = seo.ogImage || "/opengraph-image";
+
   const baseMetadata: Metadata = {
     metadataBase: new URL(siteConfig.url),
     title: {
-      default: `${siteConfig.name} | ${siteConfig.tagline}`,
+      default: seoTitle,
       template: `%s | ${siteConfig.name}`,
     },
-    description: siteConfig.description,
+    description: seoDescription,
     applicationName: siteConfig.name,
     creator: siteConfig.organization.name,
     publisher: siteConfig.organization.name,
-    keywords: [...siteConfig.keywords],
+    keywords: seoKeywords,
     alternates: {
       canonical: "/",
     },
@@ -39,22 +49,22 @@ export async function generateMetadata(): Promise<Metadata> {
       locale: siteConfig.locale,
       url: siteConfig.url,
       siteName: siteConfig.name,
-      title: `${siteConfig.name} | ${siteConfig.tagline}`,
-      description: siteConfig.description,
+      title: ogTitle,
+      description: ogDescription,
       images: [
         {
-          url: "/opengraph-image",
+          url: ogImage,
           width: 1200,
           height: 630,
-          alt: siteConfig.name,
+          alt: ogTitle,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: `${siteConfig.name} | ${siteConfig.tagline}`,
-      description: siteConfig.description,
-      images: ["/opengraph-image"],
+      title: ogTitle,
+      description: ogDescription,
+      images: [ogImage],
     },
     icons: {
       icon: "/favicon.ico",

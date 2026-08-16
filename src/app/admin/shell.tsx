@@ -110,14 +110,20 @@ const PUB = "M14 3v5a2 2 0 0 0 2 2h5M14 3h-7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2
 const SIGNOUT = "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9";
 const LEFT = "M15 6l-6 6 6 6";
 const RIGHT = "M9 6l6 6-6 6";
+const SEARCH = "M21 21l-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z";
+const FILE = "M14 3v5a2 2 0 0 0 2 2h5M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z";
+const SCALE = "M12 3v18M5 7h14M6 7l-3 6a3 3 0 0 0 6 0L6 7ZM18 7l-3 6a3 3 0 0 0 6 0l-3-6ZM4 21h16";
 
 /* ================= Nav ================= */
 const NAV = [
   { href: "/admin", label: "Resumen", icon: DASH },
   { href: "/admin/landing", label: "Landing (builder)", icon: LAYOUT },
+  { href: "/admin/paginas", label: "Páginas", icon: FILE },
   { href: "/admin/carta", label: "Carta y precios", icon: MENU },
   { href: "/admin/contacto", label: "Contacto", icon: CONTACT },
   { href: "/admin/contenido", label: "Textos y héroe", icon: SUN },
+  { href: "/admin/seo", label: "SEO", icon: SEARCH },
+  { href: "/admin/legal", label: "Datos legales", icon: SCALE },
   { href: "/admin/estilo", label: "Estilo y marca", icon: PALETTE },
 ].map((n) => ({ ...n }));
 
@@ -191,6 +197,9 @@ const SEG_LABELS: Record<string, string> = {
   contacto: "Contacto",
   contenido: "Textos y héroe",
   landing: "Landing (builder)",
+  legal: "Datos legales",
+  paginas: "Páginas",
+  seo: "SEO",
   estilo: "Estilo y marca",
 };
 
