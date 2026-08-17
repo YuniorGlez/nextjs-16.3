@@ -5,6 +5,9 @@ import { ADMIN_NAV, resolveModules } from "@/lib/admin-modules";
 import { AdminShell } from "./shell";
 import { LoginForm } from "@/components/admin/login-form";
 import { ChangePasswordGate } from "@/components/admin/change-password-gate";
+import { headers } from "next/headers";
+import { notFound } from "next/navigation";
+import { hasPermission, routePermission } from "@/lib/rbac";
 
 export const metadata = {
   robots: { index: false, follow: false },
@@ -26,6 +29,11 @@ export default async function AdminLayout({
     return <ChangePasswordGate email={admin.email} />;
   }
 
+  const requestPath = (await headers()).get("x-invoke-path") ?? (await headers()).get("next-url");
+  if (requestPath && requestPath.startsWith("/admin/") && !hasPermission(admin, routePermission(requestPath))) {
+    notFound();
+  }
+
   // Filtra la navegación por módulos activos (settings.modules). Si la BD no
   // responde, se muestran todos los módulos (fallback por defecto).
   let settings: Record<string, unknown> = {};
@@ -38,7 +46,7 @@ export default async function AdminLayout({
   const isSuperadmin = admin.isSuperadmin;
 
   const nav = ADMIN_NAV.filter(
-    (n) => !(n.superadminOnly && !isSuperadmin) && modules[n.moduleId] !== false,
+    (n) => !(n.superadminOnly && !isSuperadmin) && modules[n.moduleId] !== false && hasPermission(admin, n.permission),
   );
   const disabledModules = ADMIN_NAV.filter((n) => modules[n.moduleId] === false).map((n) => ({
     href: n.href,

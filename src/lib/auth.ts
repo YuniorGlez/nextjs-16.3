@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { getAdminById } from "@/lib/admins";
+import { hasPermission, type Permission } from "@/lib/rbac";
 
 export const COOKIE_NAME = "btv_admin";
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 días
@@ -14,6 +15,8 @@ export type AdminSession = {
   email: string;
   mustChangePassword: boolean;
   isSuperadmin: boolean;
+  role: string;
+  permissions: string[];
 };
 
 function b64url(buf: Buffer | string): string {
@@ -68,7 +71,23 @@ export async function getCurrentAdmin(): Promise<AdminSession | null> {
     email: admin.email,
     mustChangePassword: admin.mustChangePassword,
     isSuperadmin: admin.isSuperadmin,
+    role: admin.role,
+    permissions: admin.permissions,
   };
+}
+
+export async function requirePermission(permission: Permission): Promise<AdminSession> {
+  const admin = await getCurrentAdmin();
+  if (!admin) {
+    const { redirect } = await import("next/navigation");
+    redirect("/admin");
+    throw new Error("Sesión requerida");
+  }
+  if (!hasPermission(admin, permission)) {
+    const { notFound } = await import("next/navigation");
+    notFound();
+  }
+  return admin;
 }
 
 export async function isAdmin(): Promise<boolean> {

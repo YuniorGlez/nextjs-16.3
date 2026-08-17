@@ -1,5 +1,6 @@
 import { sql } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/passwords";
+import { permissionsFor, type AdminRole, sanitizePermissions } from "@/lib/rbac";
 
 /**
  * Capa de BD de administradores del panel (tabla `admins`).
@@ -17,6 +18,8 @@ export type AdminRow = {
   mustChangePassword: boolean;
   tokenVersion: number;
   isSuperadmin: boolean;
+  role: AdminRole;
+  permissions: string[];
   lastLoginAt: string | null;
   createdAt: string;
 };
@@ -28,6 +31,8 @@ type AdminDbRow = {
   must_change_password: boolean;
   token_version: number;
   is_superadmin: unknown;
+  role: unknown;
+  permissions: unknown;
   last_login_at: unknown;
   created_at: unknown;
 };
@@ -40,6 +45,8 @@ function normalizeAdmin(r: AdminDbRow): AdminRow {
     mustChangePassword: !!r.must_change_password,
     tokenVersion: r.token_version,
     isSuperadmin: !!r.is_superadmin,
+    role: (r.is_superadmin ? "superadmin" : r.role ?? "admin") as AdminRole,
+    permissions: permissionsFor(r.role, r.permissions, !!r.is_superadmin),
     lastLoginAt: r.last_login_at ? new Date(String(r.last_login_at)).toISOString() : null,
     createdAt: new Date(String(r.created_at)).toISOString(),
   };
@@ -47,7 +54,7 @@ function normalizeAdmin(r: AdminDbRow): AdminRow {
 
 // Lista de columnas constante (confiable): se interpola como fragmento SQL.
 const ADMIN_COLS =
-  "id, email, password_hash, must_change_password, token_version, is_superadmin, last_login_at, created_at";
+  "id, email, password_hash, must_change_password, token_version, is_superadmin, role, permissions, last_login_at, created_at";
 
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -89,13 +96,24 @@ export async function createAdmin(input: {
   passwordHash: string;
   mustChangePassword: boolean;
   tokenVersion: number;
+  role?: AdminRole;
+  permissions?: string[];
 }): Promise<AdminRow> {
   const rows = (await sql.query(
-    `INSERT INTO admins (email, password_hash, must_change_password, token_version)
-     VALUES ($1, $2, $3, $4) RETURNING ${ADMIN_COLS}`,
-    [input.email, input.passwordHash, input.mustChangePassword, input.tokenVersion],
+    `INSERT INTO admins (email, password_hash, must_change_password, token_version, role, permissions)
+     VALUES ($1, $2, $3, $4, $5, $6::jsonb) RETURNING ${ADMIN_COLS}`,
+    [input.email, input.passwordHash, input.mustChangePassword, input.tokenVersion, input.role ?? "admin", JSON.stringify(sanitizePermissions(input.permissions))],
   )) as unknown as AdminDbRow[];
   return normalizeAdmin(rows[0]);
+}
+
+export async function updateAdminAccess(id: number, role: AdminRole, permissions: string[]): Promise<void> {
+  await sql.query("UPDATE admins SET role = $1, permissions = $2::jsonb, is_superadmin = ($1 = 'superadmin') WHERE id = $3", [role, JSON.stringify(sanitizePermissions(permissions)), id]);
+}
+
+export async function countSuperadmins(): Promise<number> {
+  const rows = (await sql.query("SELECT COUNT(*) AS n FROM admins WHERE is_superadmin = TRUE OR role = 'superadmin'")) as unknown as { n: number }[];
+  return Number(rows[0]?.n ?? 0);
 }
 
 export async function deleteAdminById(id: number): Promise<void> {

@@ -52,6 +52,8 @@ export default async function SeguridadPage() {
               email: a.email,
               mustChangePassword: a.mustChangePassword,
               isSuperadmin: a.isSuperadmin,
+              role: a.role,
+              permissions: a.permissions,
               lastLoginAt: a.lastLoginAt,
             }))}
             currentId={me.id}

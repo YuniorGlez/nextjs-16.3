@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createSession, destroySession, getCurrentAdmin, isAdmin, type AdminSession } from "@/lib/auth";
+import { createSession, destroySession, getCurrentAdmin, isAdmin, requirePermission, type AdminSession } from "@/lib/auth";
 import {
   createAdmin,
   deleteAdminById,
@@ -14,6 +14,8 @@ import {
   setAdminPassword,
   bumpAdminTokenVersion,
   authenticateAdmin,
+  countSuperadmins,
+  updateAdminAccess,
 } from "@/lib/admins";
 import { hashPassword, validatePassword, verifyPassword } from "@/lib/passwords";
 import { getClientIp, loginLimiter } from "@/lib/rate-limit";
@@ -41,11 +43,13 @@ import {
 import { slugify } from "@/lib/slug";
 import { PAGE_DEFAULT_LAYOUT } from "@/lib/sections";
 import { ADMIN_MODULES } from "@/lib/admin-modules";
+import { PERMISSIONS, isRole, sanitizePermissions, type Permission, type AdminRole } from "@/lib/rbac";
 
-async function guard() {
+async function guard(permission: Permission = PERMISSIONS.contentWrite) {
   if (!(await isAdmin())) {
     redirect("/admin");
   }
+  await requirePermission(permission);
 }
 
 /** Como guard(), pero devuelve el admin de la sesión actual. */
@@ -122,7 +126,7 @@ export async function changePasswordAction(data: FormData): Promise<SecurityActi
 
 /** Añade un admin con contraseña temporal (cambio forzado en el primer login). */
 export async function addAdminAction(data: FormData): Promise<SecurityActionResult> {
-  await guard();
+  await guard(PERMISSIONS.security);
   const email = normalizeEmail(String(data.get("email") ?? ""));
   if (!email) {
     return { ok: false, error: "Introduce un email válido." };
@@ -149,7 +153,7 @@ export async function addAdminAction(data: FormData): Promise<SecurityActionResu
 }
 
 export async function deleteAdminAction(id: number): Promise<SecurityActionResult> {
-  const me = await requireAdmin();
+  const me = await requirePermission(PERMISSIONS.security);
   if (id === me.id) {
     return { ok: false, error: "No puedes eliminar tu propio admin." };
   }
@@ -162,12 +166,27 @@ export async function deleteAdminAction(id: number): Promise<SecurityActionResul
 }
 
 export async function revokeSessionsAction(id: number): Promise<SecurityActionResult> {
-  await guard();
+  await guard(PERMISSIONS.security);
   const admin = await getAdminById(id);
   if (!admin) {
     return { ok: false, error: "Ese admin ya no existe." };
   }
   await bumpAdminTokenVersion(id);
+  revalidatePath("/admin/seguridad");
+  return { ok: true };
+}
+
+export async function updateAdminAccessAction(id: number, roleInput: string, permissionsInput: unknown): Promise<SecurityActionResult> {
+  const me = await requirePermission(PERMISSIONS.security);
+  if (!me.isSuperadmin) return { ok: false, error: "Solo un superadmin puede gestionar roles y permisos." };
+  if (id === me.id) return { ok: false, error: "No puedes cambiar tus propios permisos." };
+  if (!isRole(roleInput)) return { ok: false, error: "Rol no válido." };
+  const target = await getAdminById(id);
+  if (!target) return { ok: false, error: "Ese admin ya no existe." };
+  if (target.isSuperadmin && roleInput !== "superadmin" && (await countSuperadmins()) <= 1) {
+    return { ok: false, error: "Debe quedar al menos un superadmin." };
+  }
+  await updateAdminAccess(id, roleInput as AdminRole, sanitizePermissions(permissionsInput));
   revalidatePath("/admin/seguridad");
   return { ok: true };
 }
@@ -180,7 +199,7 @@ export async function saveMenu(
     items: { name: string; description: string; price: string }[];
   }[],
 ) {
-  await guard();
+  await guard(PERMISSIONS.menu);
   await saveMenuDb(cats);
   revalidatePath("/admin");
   revalidatePath("/");
@@ -188,7 +207,7 @@ export async function saveMenu(
 
 // ---------- Categorías ----------
 export async function saveCategory(data: FormData) {
-  await guard();
+  await guard(PERMISSIONS.menu);
   const id = Number(data.get("id")) || undefined;
   await upsertCategory({
     id,
@@ -200,7 +219,7 @@ export async function saveCategory(data: FormData) {
 }
 
 export async function deleteCategoryAction(id: number) {
-  await guard();
+  await guard(PERMISSIONS.menu);
   await removeCategory(id);
   revalidatePath("/admin");
   revalidatePath("/");
@@ -208,7 +227,7 @@ export async function deleteCategoryAction(id: number) {
 
 // ---------- Platos ----------
 export async function saveItem(data: FormData) {
-  await guard();
+  await guard(PERMISSIONS.menu);
   const id = Number(data.get("id")) || undefined;
   await upsertItem({
     id,
@@ -222,7 +241,7 @@ export async function saveItem(data: FormData) {
 }
 
 export async function deleteItem(id: number) {
-  await guard();
+  await guard(PERMISSIONS.menu);
   await removeItem(id);
   revalidatePath("/admin");
   revalidatePath("/");
@@ -230,7 +249,13 @@ export async function deleteItem(id: number) {
 
 // ---------- Ajustes / contenido ----------
 export async function saveSettings(partial: Record<string, unknown>) {
-  await guard();
+  const settingPermissions: Record<string, Permission> = {
+    seo: PERMISSIONS.seo, branding: PERMISSIONS.branding, contacto: PERMISSIONS.contact,
+    mensajes: PERMISSIONS.contact, nav: PERMISSIONS.navigation, ai: PERMISSIONS.mediaAi,
+  };
+  const keys = Object.keys(partial);
+  if (keys.length === 0) await requirePermission(PERMISSIONS.contentWrite);
+  await Promise.all(keys.map((key) => requirePermission(settingPermissions[key] ?? PERMISSIONS.contentWrite)));
   await updateSettings(partial);
   revalidatePath("/admin");
   revalidatePath("/");
@@ -238,10 +263,7 @@ export async function saveSettings(partial: Record<string, unknown>) {
 
 // ---------- Módulos del panel ----------
 export async function saveModules(flags: Record<string, boolean>) {
-  const admin = await requireAdmin();
-  if (!admin.isSuperadmin) {
-    throw new Error("Solo el superadmin puede gestionar módulos.");
-  }
+  await requirePermission(PERMISSIONS.modules);
   // Valida contra el registro: solo ids conocidos y valores booleanos.
   const known = new Set(ADMIN_MODULES.map((m) => m.id));
   const clean: Record<string, boolean> = {};
@@ -391,7 +413,7 @@ export async function restorePageVersionAction(
 }
 
 export async function publishPageAction(id: number) {
-  await guard();
+  await guard(PERMISSIONS.contentPublish);
   const page = await getPageById(id);
   if (!page) throw new Error("La página no existe.");
   await publishPage(id);
@@ -418,13 +440,13 @@ export async function deletePageAction(id: number) {
 
 // ---------- Bandeja de mensajes ----------
 export async function setMessageReadAction(id: number, read: boolean) {
-  await guard();
+  await guard(PERMISSIONS.messagesManage);
   await setMessageRead(id, read);
   revalidatePath("/admin/mensajes");
 }
 
 export async function deleteMessageAction(id: number) {
-  await guard();
+  await guard(PERMISSIONS.messagesManage);
   await deleteContactMessage(id);
   revalidatePath("/admin/mensajes");
 }

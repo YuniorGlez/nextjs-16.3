@@ -7,14 +7,18 @@ import {
   changePasswordAction,
   deleteAdminAction,
   revokeSessionsAction,
+  updateAdminAccessAction,
 } from "@/app/admin/actions";
 import { useToast } from "@/app/admin/shell";
+import { ROLE_LABELS, ROLES, ALL_PERMISSIONS, permissionLabel, type AdminRole } from "@/lib/rbac";
 
 type AdminListItem = {
   id: number;
   email: string;
   mustChangePassword: boolean;
   isSuperadmin: boolean;
+  role: AdminRole;
+  permissions: string[];
   lastLoginAt: string | null;
 };
 
@@ -213,6 +217,13 @@ export function AdminsTable({
 
   const isBusy = (id: number) => pending && busyId === id;
 
+  function access(a: AdminListItem, form: HTMLFormElement) {
+    const values = new FormData(form);
+    const role = String(values.get("role") ?? a.role);
+    const permissions = String(values.get("permissions") ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+    run(a.id, () => updateAdminAccessAction(a.id, role, permissions), "Permisos actualizados.");
+  }
+
   return (
     <div className="admin-panel-card overflow-x-auto">
       <table className="admin-table">
@@ -221,6 +232,7 @@ export function AdminsTable({
             <th>Email</th>
             <th>Último acceso</th>
             <th>Estado</th>
+            <th>Rol y permisos</th>
             <th className="text-right">Acciones</th>
           </tr>
         </thead>
@@ -275,6 +287,16 @@ export function AdminsTable({
                     Eliminar
                   </button>
                 </div>
+              </td>
+              <td>
+                <form className="flex flex-col gap-2" onSubmit={(e) => { e.preventDefault(); access(a, e.currentTarget); }}>
+                  <select className="admin-input" name="role" defaultValue={a.role} disabled={a.id === currentId}>
+                    {ROLES.map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}
+                  </select>
+                  <input className="admin-input" name="permissions" defaultValue={a.permissions.join(", ")} disabled={a.id === currentId} aria-label="Permisos explícitos" />
+                  <small className="text-xs text-zinc-500">{ALL_PERMISSIONS.map(permissionLabel).join(" · ")}</small>
+                  {a.id !== currentId && <button type="submit" className="admin-btn admin-btn--sm" disabled={isBusy(a.id)}>Guardar acceso</button>}
+                </form>
               </td>
             </tr>
           ))}

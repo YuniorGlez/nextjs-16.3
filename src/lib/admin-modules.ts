@@ -23,6 +23,7 @@ export type AdminNavItem = {
   moduleId: string;
   /** Solo visible para superadmins. */
   superadminOnly?: boolean;
+  permission: import("@/lib/rbac").Permission;
 };
 
 // Iconos (paths SVG, stroke 2, viewBox 24x24)
@@ -62,25 +63,26 @@ export const ADMIN_MODULES: AdminModule[] = [
 ];
 
 export const ADMIN_NAV: AdminNavItem[] = [
-  { href: "/admin", label: "Resumen", icon: DASH, moduleId: "core" },
-  { href: "/admin/landing", label: "Landing (builder)", icon: LAYOUT, moduleId: "core" },
-  { href: "/admin/paginas", label: "Páginas", icon: FILE, moduleId: "core" },
-  { href: "/admin/menu", label: "Menú", icon: MENU, moduleId: "core" },
-  { href: "/admin/carta", label: "Carta y precios", icon: MENU, moduleId: "carta" },
-  { href: "/admin/contacto", label: "Contacto", icon: CONTACT, moduleId: "contacto" },
-  { href: "/admin/mensajes", label: "Mensajes", icon: CONTACT, moduleId: "contacto" },
-  { href: "/admin/contenido", label: "Textos y héroe", icon: SUN, moduleId: "core" },
-  { href: "/admin/seo", label: "SEO", icon: SEARCH, moduleId: "core" },
-  { href: "/admin/imagenes", label: "Imágenes y IA", icon: IMAGE, moduleId: "core" },
-  { href: "/admin/legal", label: "Datos legales", icon: SCALE, moduleId: "core" },
-  { href: "/admin/estilo", label: "Estilo y marca", icon: PALETTE, moduleId: "core" },
-  { href: "/admin/seguridad", label: "Seguridad", icon: LOCK, moduleId: "core" },
+  { href: "/admin", label: "Resumen", icon: DASH, moduleId: "core", permission: "dashboard.view" },
+  { href: "/admin/landing", label: "Landing (builder)", icon: LAYOUT, moduleId: "core", permission: "content.read" },
+  { href: "/admin/paginas", label: "Páginas", icon: FILE, moduleId: "core", permission: "content.read" },
+  { href: "/admin/menu", label: "Menú", icon: MENU, moduleId: "core", permission: "navigation.manage" },
+  { href: "/admin/carta", label: "Carta y precios", icon: MENU, moduleId: "carta", permission: "menu.manage" },
+  { href: "/admin/contacto", label: "Contacto", icon: CONTACT, moduleId: "contacto", permission: "contact.manage" },
+  { href: "/admin/mensajes", label: "Mensajes", icon: CONTACT, moduleId: "contacto", permission: "messages.read" },
+  { href: "/admin/contenido", label: "Textos y héroe", icon: SUN, moduleId: "core", permission: "content.read" },
+  { href: "/admin/seo", label: "SEO", icon: SEARCH, moduleId: "core", permission: "seo.manage" },
+  { href: "/admin/imagenes", label: "Imágenes y IA", icon: IMAGE, moduleId: "core", permission: "media.upload" },
+  { href: "/admin/legal", label: "Datos legales", icon: SCALE, moduleId: "core", permission: "legal.manage" },
+  { href: "/admin/estilo", label: "Estilo y marca", icon: PALETTE, moduleId: "core", permission: "branding.manage" },
+  { href: "/admin/seguridad", label: "Seguridad", icon: LOCK, moduleId: "core", permission: "security.manage" },
   {
     href: "/admin/modulos",
     label: "Módulos",
     icon: SLIDERS,
     moduleId: "core",
     superadminOnly: true,
+    permission: "modules.manage",
   },
 ];
 
