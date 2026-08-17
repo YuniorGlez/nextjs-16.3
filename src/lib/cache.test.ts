@@ -25,7 +25,7 @@ describe("cache pública", () => {
   });
 
   it("excluye secretos y configuración de correo de settings públicos", () => {
-    expect(selectPublicSettings({ ai: { openrouterApiKey: "secret" }, mensajes: { to: "private" }, hero: { h1: "Hola" } })).toEqual({ hero: { h1: "Hola" } });
+    expect(selectPublicSettings({ ai: { openrouterApiKey: "private" }, mensajes: { to: "private" }, analytics: { enabled: true, measurementId: "G-ABC", extra: "discard" }, hero: { h1: "Hola" } })).toEqual({ analytics: { enabled: true, measurementId: "G-ABC", consentDefault: false }, hero: { h1: "Hola" } });
   });
 
   it("invalida páginas y slugs sin duplicados usando SWR de Next 16", () => {

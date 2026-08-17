@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { trackEvent } from "@/components/analytics";
 
 export function ContactForm() {
   const [status, setStatus] = useState<"idle" | "sending" | "ok" | "error">("idle");
@@ -25,6 +26,7 @@ export function ContactForm() {
       });
       const json = await res.json().catch(() => ({}));
       if (res.ok && json.ok) {
+        trackEvent("contact_submit", { form_id: "contact" });
         setStatus("ok");
         form.reset();
       } else {

@@ -6,6 +6,7 @@ import { saveSettings } from "@/app/admin/actions";
 import { useAdminSave, useToast } from "@/app/admin/shell";
 import { ImageField } from "@/components/admin/image-field";
 import { getSeoScore } from "@/lib/seo-core";
+import { normalizeAnalyticsSettings, sanitizeMeasurementId } from "@/lib/analytics";
 
 type S = Record<string, unknown>;
 
@@ -288,6 +289,52 @@ export function SeoEditor({ settings }: { settings: S }) {
 function siteUrl() {
   if (typeof window === "undefined") return "";
   return window.location.origin;
+}
+
+/* ---------------- Google Analytics 4 ---------------- */
+export function AnalyticsEditor({ settings }: { settings: S }) {
+  const initial = normalizeAnalyticsSettings(settings.analytics);
+  const [draft, setDraft] = useState<S>({ ...initial });
+  const saveState = useSave(draft, "analytics", () => ({
+    enabled: draft.enabled === true,
+    measurementId: String(draft.measurementId ?? "").trim(),
+    consentDefault: draft.consentDefault === true,
+  }));
+
+  function set(key: string, value: string | boolean) {
+    setDraft((current) => ({ ...current, [key]: value }));
+    saveState.setDirty(true);
+  }
+
+  const measurementId = String(draft.measurementId ?? "").trim();
+  const validId = !measurementId || sanitizeMeasurementId(measurementId) !== null;
+  return (
+    <div>
+      <div className="admin-page-header">
+        <h1>Google Analytics 4</h1>
+        <p>Configura GA4 para este cliente. El script solo se carga con un ID G- válido y consentimiento permitido.</p>
+      </div>
+      <section className="admin-section">
+        <div className="admin-panel-card p-5">
+          <div className="admin-form-grid">
+            <Field label="Measurement ID (GA4)">
+              <input className={inputCls} value={measurementId} maxLength={30} placeholder="G-XXXXXXXXXX" onChange={(e) => set("measurementId", e.target.value)} />
+              {!validId && <span className="mt-1 text-xs text-red-400">Debe tener el formato G-XXXXXXXX.</span>}
+            </Field>
+            <label className="admin-field flex-row items-center gap-3">
+              <input type="checkbox" checked={draft.enabled === true} onChange={(e) => set("enabled", e.target.checked)} />
+              <span>Activar GA4</span>
+            </label>
+            <label className="admin-field flex-row items-center gap-3">
+              <input type="checkbox" checked={draft.consentDefault === true} onChange={(e) => set("consentDefault", e.target.checked)} />
+              <span>Consentimiento por defecto</span>
+            </label>
+          </div>
+          <p className="mt-4 text-xs text-zinc-500">Activa el consentimiento por defecto solo cuando la base legal y la política del cliente lo permitan. Si está desactivado, no se cargará ningún script hasta que la persona acepte el banner existente. Rechazar detiene futuros eventos.</p>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 /* ---------------- Datos legales (para páginas de cookies/privacidad) ---------------- */

@@ -41,6 +41,7 @@ const SCALE = "M12 3v18M5 7h14M6 7l-3 6a3 3 0 0 0 6 0L6 7ZM18 7l-3 6a3 3 0 0 0 6
 const IMAGE = "M3 3h18v18H3z M21 15l-3.1-3.1a2 2 0 0 0-2.8 0L6 21 M9 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z";
 const LOCK = "M12 3a4 4 0 0 0-4 4v3H7a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a4 4 0 0 0-4-4Zm-2 7V7a2 2 0 1 1 4 0v3h-4Z";
 const SLIDERS = "M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6";
+const CHART = "M4 19V5M4 19h16M8 16v-4M12 16V8M16 16v-6";
 
 export const ADMIN_MODULES: AdminModule[] = [
   {
@@ -72,6 +73,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { href: "/admin/mensajes", label: "Mensajes", icon: CONTACT, moduleId: "contacto", permission: "messages.read" },
   { href: "/admin/contenido", label: "Textos y héroe", icon: SUN, moduleId: "core", permission: "content.read" },
   { href: "/admin/seo", label: "SEO", icon: SEARCH, moduleId: "core", permission: "seo.manage" },
+  { href: "/admin/analytics", label: "Analytics", icon: CHART, moduleId: "core", permission: "analytics.manage" },
   { href: "/admin/idiomas", label: "Idiomas", icon: SEARCH, moduleId: "core", permission: "i18n.manage" },
   { href: "/admin/imagenes", label: "Imágenes y IA", icon: IMAGE, moduleId: "core", permission: "media.upload" },
   { href: "/admin/legal", label: "Datos legales", icon: SCALE, moduleId: "core", permission: "legal.manage" },

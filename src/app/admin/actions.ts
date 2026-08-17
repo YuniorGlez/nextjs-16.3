@@ -46,6 +46,7 @@ import { ADMIN_MODULES } from "@/lib/admin-modules";
 import { applyTemplateToSettings, getTemplate, validateTemplateId } from "@/lib/templates";
 import { PERMISSIONS, isRole, sanitizePermissions, type Permission, type AdminRole } from "@/lib/rbac";
 import { recordCurrentAdminAudit } from "@/lib/audit";
+import { normalizeAnalyticsSettings } from "@/lib/analytics";
 import { invalidatePublicMenu, invalidatePublicPages, invalidatePublicRedirects, invalidatePublicSettings } from "@/lib/cache";
 
 async function guard(permission: Permission = PERMISSIONS.contentWrite) {
@@ -271,12 +272,14 @@ export async function saveSettings(partial: Record<string, unknown>) {
     seo: PERMISSIONS.seo, branding: PERMISSIONS.branding, contacto: PERMISSIONS.contact,
     mensajes: PERMISSIONS.contact, nav: PERMISSIONS.navigation, ai: PERMISSIONS.mediaAi,
     template: PERMISSIONS.branding,
+    analytics: PERMISSIONS.analytics,
   };
   const keys = Object.keys(partial);
   if (keys.length === 0) await requirePermission(PERMISSIONS.contentWrite);
   await Promise.all(keys.map((key) => requirePermission(settingPermissions[key] ?? PERMISSIONS.contentWrite)));
   const safePartial = { ...partial };
   if ("seo" in safePartial) safePartial.seo = normalizeSeoSettings(safePartial.seo);
+  if ("analytics" in safePartial) safePartial.analytics = normalizeAnalyticsSettings(safePartial.analytics);
   await updateSettings(safePartial);
   invalidatePublicSettings();
   await recordCurrentAdminAudit({ action: "settings.update", entityType: "settings", metadata: { keys } });

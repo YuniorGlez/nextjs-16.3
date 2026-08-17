@@ -20,6 +20,7 @@ export const PERMISSIONS = {
   legal: "legal.manage",
   navigation: "navigation.manage",
   i18n: "i18n.manage",
+  analytics: "analytics.manage",
 } as const;
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 export const ALL_PERMISSIONS = Object.values(PERMISSIONS) as Permission[];
@@ -92,6 +93,7 @@ export function routePermission(pathname: string): Permission {
   if (pathname.startsWith("/admin/estilo")) return PERMISSIONS.branding;
   if (pathname.startsWith("/admin/plantillas")) return PERMISSIONS.branding;
   if (pathname.startsWith("/admin/legal")) return PERMISSIONS.legal;
+  if (pathname.startsWith("/admin/analytics")) return PERMISSIONS.analytics;
   if (pathname.startsWith("/admin/menu")) return PERMISSIONS.navigation;
   return PERMISSIONS.contentRead;
 }

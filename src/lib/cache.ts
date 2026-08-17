@@ -1,4 +1,5 @@
 import { revalidateTag } from "next/cache";
+import { normalizeAnalyticsSettings } from "@/lib/analytics";
 
 /** Tags de la superficie pública. Nunca incluyen borradores ni datos de admin. */
 export const CACHE_TAGS = {
@@ -47,6 +48,7 @@ export function isCacheablePublicQuery(options: { published?: boolean; draft?: b
 
 /** Elimina settings reservados antes de que entren en la cache pública/RSC. */
 export function selectPublicSettings(settings: Record<string, unknown>): Record<string, unknown> {
-  const { ai: _ai, mensajes: _mensajes, ...publicSettings } = settings;
+  const { ai: _ai, mensajes: _mensajes, analytics, ...publicSettings } = settings;
+  if (analytics !== undefined) publicSettings.analytics = normalizeAnalyticsSettings(analytics);
   return publicSettings;
 }

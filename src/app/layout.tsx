@@ -7,6 +7,7 @@ import { resolveSiteConfig } from "@/lib/site-config";
 import { canonicalUrl, getSeoSettings, normalizeSeoSettings, parseKeywords, sanitizeSeoUrl } from "@/lib/seo";
 import { Providers } from "@/components/providers";
 import { alternatesForPath, normalizeI18nConfig, normalizeLocale } from "@/lib/i18n";
+import { normalizeAnalyticsSettings } from "@/lib/analytics";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -124,6 +125,18 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const requestLocale = normalizeLocale((await headers()).get("x-cms-locale"));
+  let analytics = normalizeAnalyticsSettings({
+    enabled: Boolean(process.env.NEXT_PUBLIC_GA_ID),
+    measurementId: process.env.NEXT_PUBLIC_GA_ID,
+    consentDefault: process.env.NEXT_PUBLIC_ANALYTICS_DEFAULT_CONSENT === "true",
+  });
+  try {
+    const { getPublicSettings } = await import("@/lib/data");
+    const settings = await getPublicSettings();
+    if (settings.analytics !== undefined) analytics = normalizeAnalyticsSettings(settings.analytics);
+  } catch {
+    // BD no disponible: se conserva el fallback de provisioning/env.
+  }
   return (
     <html
       lang={requestLocale}
@@ -131,7 +144,7 @@ export default async function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <a href="#contenido-principal" className="skip-link">Saltar al contenido principal</a>
-        <Providers>{children}</Providers>
+        <Providers analytics={analytics}>{children}</Providers>
       </body>
     </html>
   );
