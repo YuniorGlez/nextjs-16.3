@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
+import { PERMISSIONS } from "@/lib/rbac";
 import { generateAiImage, AI_ASPECTS, AI_QUALITIES, ApiError } from "@/lib/openrouter";
 import { blobConfigured, saveBufferToBlob } from "@/lib/blob";
 
@@ -8,9 +9,7 @@ export const runtime = "nodejs";
 const MAX_PROMPT = 2000;
 
 export async function POST(request: NextRequest) {
-  if (!(await isAdmin())) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+  try { await requirePermission(PERMISSIONS.mediaAi); } catch { return NextResponse.json({ error: "No autorizado" }, { status: 401 }); }
 
   let body: Record<string, unknown>;
   try {

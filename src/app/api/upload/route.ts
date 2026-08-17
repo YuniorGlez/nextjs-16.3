@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
-import { isAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
+import { PERMISSIONS } from "@/lib/rbac";
 import { blobConfigured } from "@/lib/blob";
 import { optimizeImage } from "@/lib/optimize";
 import { getClientIp, uploadLimiter } from "@/lib/rate-limit";
@@ -17,9 +18,7 @@ const EXT_BY_TYPE: Record<string, string> = {
 };
 
 export async function POST(request: NextRequest) {
-  if (!(await isAdmin())) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+  try { await requirePermission(PERMISSIONS.mediaUpload); } catch { return NextResponse.json({ error: "No autorizado" }, { status: 401 }); }
 
   // Rate-limit por IP: 20 subidas / 10 min. Solo cuenta a admins autenticados
   // (el 401 sale antes) y se comprueba antes de parsear el multipart.
