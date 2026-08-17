@@ -52,7 +52,9 @@ Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 
 ## Variables de entorno
 
-Copia `.env.example` a `.env.local` y rellena los valores:
+Copia `.env.example` a `.env.local` y rellena los valores. GA4 puede configurarse
+por cliente desde `/admin/analytics`; las variables siguientes se mantienen como
+fallback para instalaciones antiguas:
 
 ```bash
 cp .env.example .env.local
@@ -100,14 +102,49 @@ npx vercel blob create-store       # crea el store y muestra el token
 Añade el `BLOB_READ_WRITE_TOKEN` a `.env.local` y a las variables de entorno
 del proyecto en Vercel. Sin él, la subida avisa con un error claro.
 
+## Capacidades CMS reutilizables
+
+La base está preparada para desplegar proyectos independientes para distintos
+clientes, manteniendo separados el código de plataforma, la configuración del
+cliente y el contenido editable:
+
+- **Contenido y publicación**: páginas con borradores, publicación explícita,
+  preview privado, historial de versiones y redirecciones 301 al cambiar slugs.
+- **Usuarios y control operativo**: multi-admin, RBAC server-side, auditoría de
+  cambios y protección de las rutas administrativas y APIs.
+- **Datos y consistencia**: migraciones forward-only, operaciones críticas en
+  transacciones Neon HTTP, caché pública por tags e invalidación después del
+  commit. Los borradores, previews y datos administrativos nunca entran en la
+  caché pública.
+- **Media library**: assets persistentes en `media_assets`, búsqueda,
+  paginación, metadatos accesibles, soft delete y protección contra borrar
+  imágenes referenciadas.
+- **Diseño y accesibilidad**: plantillas sectoriales no destructivas, branding
+  configurable, `next/image` para rutas compatibles, validación de alt text,
+  skip link y foco visible.
+- **SEO**: canonical, Open Graph, Twitter, JSON-LD, sitemap con `lastmod`,
+  score SEO y exclusión de contenido no publicado.
+- **Multiidioma**: locales configurables por cliente, URLs `/<locale>/...`,
+  fallback determinista, traducciones opcionales, `hreflang` y sitemap por
+  idioma.
+- **Analytics**: GA4 configurable desde `/admin/analytics`, consentimiento
+  compatible con el banner existente y eventos allowlisted sin PII.
+
+La documentación detallada de cada subsistema está en `docs/`: `rbac.md`,
+`audit-log.md`, `cache.md`, `neon-transactions.md`, `media-library.md`,
+`image-accessibility.md`, `sector-templates.md`, `seo.md`, `i18n.md` y
+`analytics.md`.
+
 ## Scripts
 
 ```bash
-bun run dev        # servidor de desarrollo
-bun run build      # build de producción
-bun run start      # servidor de producción
-bun run lint       # oxlint
-bun run typecheck  # tsc --noEmit
+bun run dev          # servidor de desarrollo
+bun run build        # build de producción
+bun run start        # servidor de producción
+bun run lint         # oxlint
+bun run typecheck    # tsc --noEmit
+bun run test         # Vitest
+bun run format:check # comprobar formato sin modificar archivos
 ```
 
 ## Migraciones de base de datos
@@ -122,6 +159,12 @@ bun --env-file=.env.local run db:migrate         # aplica migraciones pendientes
 bun --env-file=.env.local run db:migrate:status  # muestra el estado
 bun --env-file=.env.local scripts/seed.ts        # datos demo, después de migrar
 ```
+
+Las migraciones actuales llegan hasta la `0007_i18n`, que añade configuración
+multiidioma y traducciones opcionales por página. Las funcionalidades que usan
+JSONB existente (`analytics`, `template`, configuración SEO y branding) no
+requieren una migración adicional. Revisa siempre `bun run db:migrate:status`
+antes de aplicar cambios en una base de cliente.
 
 Cada migración vive en `scripts/migrations/` y exporta un objeto con este
 formato:
@@ -190,3 +233,20 @@ CMS; actualiza ese invariante al desplegar un dominio nuevo.
 El proyecto está configurado para desplegar en Vercel usando Bun.
 `vercel.json` define `installCommand`, `devCommand` y `buildCommand` con bun.
 Configura las variables de entorno en el dashboard de Vercel.
+
+## Checklist para un nuevo cliente
+
+1. Ejecutar `project:provision` en modo `--dry-run` y revisar la configuración.
+2. Configurar las variables de entorno y el dominio productivo.
+3. Aplicar migraciones pendientes; no ejecutar el seed contra una base existente.
+4. Revisar branding, plantilla sectorial, SEO, idiomas y consentimiento de
+   analytics desde `/admin`.
+5. Completar alt text de imágenes y comprobar el flujo de media library.
+6. Crear o revisar admins y sus permisos RBAC.
+7. Verificar `/robots.txt`, `/sitemap.xml`, canonicals, alternates y preview.
+8. Ejecutar `bun run test`, `bun run typecheck`, `bun run lint` y `bun run build`.
+9. Probar en móvil, teclado y un dominio de preview antes de producción.
+
+`AGENTS.md` contiene las reglas operativas del repositorio y el bloque generado
+por Next.js; se conserva como fichero protegido. Los detalles funcionales y de
+provisionamiento deben mantenerse en este README y en `docs/`.

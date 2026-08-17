@@ -16,9 +16,11 @@ rationale behind each decision. Read it before changing structure.
 
 ## Invariants
 
-- `src/lib/site.ts` is the **single source of truth** for SEO metadata.
-  All titles, descriptions, and keywords must be edited there; nothing else
-  hardcodes them. This invariant must hold for every client project.
+- `src/lib/site.ts` and the effective site configuration are the source of
+  platform defaults and SEO fallbacks. Client-specific SEO may be edited from
+  the CMS (`settings.seo` and page SEO fields), and is normalized centrally in
+  `src/lib/seo-core.ts`. No raw HTML or arbitrary JSON-LD is accepted from the
+  CMS.
 - Server Components are the default; `'use client'` is only added for
   interactivity. No `setState` inside `useEffect` (React 19 lint rule).
 - `cookies()` and `headers()` are async in Next.js 16 and must always be
@@ -26,8 +28,10 @@ rationale behind each decision. Read it before changing structure.
 - Non-production domains are never indexed. Three layers enforce this
   (`X-Robots-Tag` in proxy.ts, `Disallow: /` in robots.ts, `<meta
   name="robots" content="noindex">` in metadata) and all three must hold.
-- Analytics only load after cookie consent (or when
-  `NEXT_PUBLIC_ANALYTICS_DEFAULT_CONSENT=true`).
+- Analytics only load after cookie consent, unless the client explicitly
+  configures a lawful default in `settings.analytics.consentDefault` or the
+  legacy fallback `NEXT_PUBLIC_ANALYTICS_DEFAULT_CONSENT=true`. Events are
+  allowlisted and must not contain PII.
 
 ## Design decisions
 

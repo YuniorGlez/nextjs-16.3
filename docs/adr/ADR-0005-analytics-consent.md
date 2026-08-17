@@ -14,9 +14,11 @@ flagged in every privacy audit.
 ## Decision
 
 Google Analytics loads only after the visitor accepts cookies, enforced by
-`useCookieConsent` (`src/lib/cookies.ts`) and the `Analytics` component.
-An opt-out env var `NEXT_PUBLIC_ANALYTICS_DEFAULT_CONSENT=true` exists for
-projects where the client explicitly waives the banner.
+`useCookieConsent` (`src/lib/cookies.ts`) and the `Analytics` component. The
+client may configure a lawful default through `settings.analytics` from the
+admin; `NEXT_PUBLIC_ANALYTICS_DEFAULT_CONSENT=true` remains a legacy fallback.
+GA4 is also validated server-side, and event parameters are allowlisted and
+sanitized to exclude PII.
 
 ## Consequences
 
