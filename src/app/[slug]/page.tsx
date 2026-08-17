@@ -7,6 +7,7 @@ import { brandingCss, normalizeBranding } from "@/lib/branding";
 import { normalizeLegal } from "@/lib/legal";
 import { normalizeNav } from "@/lib/nav";
 import { resolveSiteConfig } from "@/lib/site-config";
+import { canonicalUrl, normalizeSeoSettings, sanitizeSeoText, sanitizeSeoUrl } from "@/lib/seo";
 import {
   LandingFooter,
   LandingSections,
@@ -27,23 +28,26 @@ export async function generateMetadata({
     const { getPublicPageBySlug } = await import("@/lib/data");
     const page = await getPublicPageBySlug(slug);
     if (!page || !page.visible) return { title: "Página no encontrada" };
-    const title = page.seo.title || page.name;
     const site = await resolveSiteConfig();
-    const description = page.seo.description || site.seo.description || site.description;
-    const ogImage = page.seo.ogImage?.trim();
-    // OG image por página: la manual del CMS gana; si no hay, se genera
-    // dinámicamente en /og/[slug] con el título de la página.
-    const ogImageUrl = ogImage || `${site.url}/og/${page.slug}`;
+    const seo = normalizeSeoSettings(page.seo, site.url);
+    const siteSeo = normalizeSeoSettings(site.seo, site.url);
+    const title = seo.title || page.name;
+    const description = seo.description || siteSeo.description || site.description;
+    const ogImageUrl = sanitizeSeoUrl(seo.ogImage, site.url) || canonicalUrl(site.url, `/og/${page.slug}`);
     return {
-      title,
-      description,
-      alternates: { canonical: `/${page.slug}` },
+      title: sanitizeSeoText(title, 70),
+      description: sanitizeSeoText(description, 200),
+      alternates: { canonical: canonicalUrl(site.url, `/${page.slug}`) },
+      robots: { index: page.isPublished && page.visible, follow: page.isPublished && page.visible },
       openGraph: {
-        title,
-        description,
-        images: [{ url: ogImageUrl, width: 1200, height: 630 }],
+        type: "website",
+        title: sanitizeSeoText(seo.ogTitle || title, 70),
+        description: sanitizeSeoText(seo.ogDescription || description, 200),
+        url: canonicalUrl(site.url, `/${page.slug}`),
+        siteName: site.name,
+        images: [{ url: ogImageUrl, width: 1200, height: 630, alt: sanitizeSeoText(title, 70) }],
       },
-      twitter: { card: "summary_large_image", images: [ogImageUrl] },
+      twitter: { card: "summary_large_image", title: sanitizeSeoText(seo.ogTitle || title, 70), description, images: [ogImageUrl] },
     };
   } catch {
     return { title: "Página no encontrada" };

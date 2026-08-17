@@ -6,6 +6,7 @@ import { SectionsEditor } from "@/components/admin/sections-editor";
 import { ImageField } from "@/components/admin/image-field";
 import { useAdminSave, useToast } from "@/app/admin/shell";
 import { slugify } from "@/lib/slug";
+import { getSeoScore } from "@/lib/seo-core";
 import type { DbPage, DbPageVersion } from "@/lib/data";
 import type { MenuCategory } from "@/lib/data";
 
@@ -55,6 +56,7 @@ export function PageEditor({
   );
 
   const slugPreview = slugify(slug) || slugify(name) || "…";
+  const seoScore = getSeoScore(seo);
 
   async function handlePublish() {
     if (saveState.dirty) {
@@ -201,6 +203,11 @@ export function PageEditor({
                 hint="1200×630 px. Aparece al compartir la página en redes. Recorte y optimización automáticos."
               />
             </label>
+          </div>
+          <div className="mt-4 rounded-lg border border-white/10 bg-zinc-950 p-3 text-xs">
+            <strong>Auditoría SEO automática · {seoScore.score}/100</strong>
+            <span className="ml-2 text-zinc-500">No bloquea el guardado.</span>
+            {seoScore.recommendations.length > 0 && <ul className="mt-2 list-disc pl-5 text-amber-300">{seoScore.recommendations.map((item) => <li key={item}>{item}</li>)}</ul>}
           </div>
           <p className="mt-3 text-xs text-zinc-500">
             Pulsa «Guardar» en la barra superior para aplicar cambios en la página (nombre, URL, visibilidad y SEO).

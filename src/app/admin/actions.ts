@@ -40,6 +40,7 @@ import {
   type PageLayoutItem,
 } from "@/lib/data";
 import { slugify } from "@/lib/slug";
+import { normalizeSeoSettings } from "@/lib/seo";
 import { PAGE_DEFAULT_LAYOUT } from "@/lib/sections";
 import { ADMIN_MODULES } from "@/lib/admin-modules";
 import { applyTemplateToSettings, getTemplate, validateTemplateId } from "@/lib/templates";
@@ -274,7 +275,9 @@ export async function saveSettings(partial: Record<string, unknown>) {
   const keys = Object.keys(partial);
   if (keys.length === 0) await requirePermission(PERMISSIONS.contentWrite);
   await Promise.all(keys.map((key) => requirePermission(settingPermissions[key] ?? PERMISSIONS.contentWrite)));
-  await updateSettings(partial);
+  const safePartial = { ...partial };
+  if ("seo" in safePartial) safePartial.seo = normalizeSeoSettings(safePartial.seo);
+  await updateSettings(safePartial);
   invalidatePublicSettings();
   await recordCurrentAdminAudit({ action: "settings.update", entityType: "settings", metadata: { keys } });
   revalidatePath("/admin");
@@ -376,7 +379,7 @@ export async function updatePage(input: {
     slug,
     name: input.name.trim() || "Página",
     visible: input.visible,
-    seo: input.seo,
+    seo: normalizeSeoSettings(input.seo),
     layout: input.layout,
     content: input.content,
   };

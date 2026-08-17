@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { saveSettings } from "@/app/admin/actions";
 import { useAdminSave, useToast } from "@/app/admin/shell";
 import { ImageField } from "@/components/admin/image-field";
+import { getSeoScore } from "@/lib/seo-core";
 
 type S = Record<string, unknown>;
 
@@ -208,6 +209,7 @@ export function SeoEditor({ settings }: { settings: S }) {
   const seo = (settings.seo ?? {}) as Record<string, string>;
   const [draft, setDraft] = useState<S>({ ...seo });
   const saveState = useSave(draft, "seo", () => draft);
+  const seoScore = getSeoScore(draft as Record<string, string>);
 
   function set(k: string, v: string) {
     setDraft((d) => ({ ...d, [k]: v }));
@@ -258,6 +260,12 @@ export function SeoEditor({ settings }: { settings: S }) {
               <textarea className={`${inputCls} min-h-20`} value={String(draft.ogDescription ?? "")} placeholder="Igual que la meta descripción si lo dejas vacío" onChange={(e) => set("ogDescription", e.target.value)} />
             </Field>
           </div>
+        </div>
+
+        <div className="admin-panel-card p-5" style={{ marginTop: 16 }}>
+          <h3 className="font-semibold">Auditoría SEO automática · {seoScore.score}/100</h3>
+          <p className="mt-2 text-xs text-zinc-500">Recomendaciones informativas; no bloquean el guardado.</p>
+          {seoScore.recommendations.length > 0 && <ul className="mt-2 list-disc pl-5 text-xs text-amber-300">{seoScore.recommendations.map((item) => <li key={item}>{item}</li>)}</ul>}
         </div>
 
         <div className="admin-panel-card p-5" style={{ marginTop: 16 }}>

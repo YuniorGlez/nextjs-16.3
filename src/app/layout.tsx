@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import "./globals.css";
 import { isProductionHost } from "@/lib/site";
 import { resolveSiteConfig } from "@/lib/site-config";
-import { getSeoSettings, parseKeywords } from "@/lib/seo";
+import { canonicalUrl, getSeoSettings, normalizeSeoSettings, parseKeywords, sanitizeSeoUrl } from "@/lib/seo";
 import { Providers } from "@/components/providers";
 
 const geistSans = Geist({
@@ -24,13 +24,14 @@ export async function generateMetadata(): Promise<Metadata> {
   const isProduction = isProductionHost(host, site.productionHost);
 
   // SEO del CMS con fallback a la configuración efectiva del cliente.
-  const seo = await getSeoSettings();
-  const seoTitle = seo.title || site.seo.title || `${site.name} | ${site.tagline}`;
-  const seoDescription = seo.description || site.seo.description || site.description;
-  const seoKeywords = seo.keywords ? parseKeywords(seo.keywords) : site.seo.keywords ? parseKeywords(site.seo.keywords) : [...site.keywords];
-  const ogTitle = seo.ogTitle || seoTitle;
-  const ogDescription = seo.ogDescription || seoDescription;
-  const ogImage = seo.ogImage || site.seo.ogImage || "/opengraph-image";
+  const seo = normalizeSeoSettings(await getSeoSettings(), site.url);
+  const siteSeo = normalizeSeoSettings(site.seo, site.url);
+  const seoTitle = seo.title || siteSeo.title || `${site.name} | ${site.tagline}`;
+  const seoDescription = seo.description || siteSeo.description || site.description;
+  const seoKeywords = seo.keywords ? parseKeywords(seo.keywords) : siteSeo.keywords ? parseKeywords(siteSeo.keywords) : [...site.keywords];
+  const ogTitle = seo.ogTitle || siteSeo.ogTitle || seoTitle;
+  const ogDescription = seo.ogDescription || siteSeo.ogDescription || seoDescription;
+  const ogImage = sanitizeSeoUrl(seo.ogImage || siteSeo.ogImage || "/opengraph-image", site.url) || canonicalUrl(site.url, "/opengraph-image");
 
   const baseMetadata: Metadata = {
     metadataBase: new URL(site.url),
