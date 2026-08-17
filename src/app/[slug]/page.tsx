@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { JsonLd } from "@/components/json-ld";
+import { BreadcrumbJsonLd, JsonLd } from "@/components/json-ld";
 import { SiteNav } from "@/components/site-nav";
 import { SiteAnimations } from "@/components/site-animations";
 import { brandingCss, normalizeBranding } from "@/lib/branding";
@@ -28,21 +28,22 @@ export async function generateMetadata({
     const { getPageBySlug } = await import("@/lib/data");
     const page = await getPageBySlug(slug);
     if (!page || !page.visible) return { title: "Página no encontrada" };
+    const title = page.seo.title || page.name;
+    const description = page.seo.description || siteConfig.description;
     const ogImage = page.seo.ogImage?.trim();
+    // OG image por página: la manual del CMS gana; si no hay, se genera
+    // dinámicamente en /og/[slug] con el título de la página.
+    const ogImageUrl = ogImage || `${siteConfig.url}/og/${page.slug}`;
     return {
-      title: page.seo.title || page.name,
-      description: page.seo.description || siteConfig.description,
+      title,
+      description,
       alternates: { canonical: `/${page.slug}` },
-      ...(ogImage
-        ? {
-            openGraph: {
-              title: page.seo.title || page.name,
-              description: page.seo.description || siteConfig.description,
-              images: [{ url: ogImage, width: 1200, height: 630 }],
-            },
-            twitter: { card: "summary_large_image", images: [ogImage] },
-          }
-        : {}),
+      openGraph: {
+        title,
+        description,
+        images: [{ url: ogImageUrl, width: 1200, height: 630 }],
+      },
+      twitter: { card: "summary_large_image", images: [ogImageUrl] },
     };
   } catch {
     return { title: "Página no encontrada" };
@@ -80,6 +81,7 @@ export default async function SlugPage({
     <>
       <style>{brandingCss(branding)}</style>
       <JsonLd />
+      <BreadcrumbJsonLd name={page.name} slug={page.slug} />
       <SiteNav pages={pages} brandName={siteConfig.name} nav={nav} />
       <SiteAnimations>
         <main>

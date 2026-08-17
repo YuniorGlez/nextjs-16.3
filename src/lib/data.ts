@@ -63,6 +63,8 @@ export type DbPage = {
   seo: Record<string, string>;
   content: Record<string, unknown>;
   layout: PageLayoutItem[];
+  /** Última modificación del contenido (ISO 8601) o null si no se conoce. */
+  updatedAt: string | null;
 };
 
 type PageRow = {
@@ -74,6 +76,7 @@ type PageRow = {
   seo: unknown;
   content: unknown;
   layout: unknown;
+  updated_at: unknown;
 };
 
 function normalizePage(r: PageRow): DbPage {
@@ -86,25 +89,35 @@ function normalizePage(r: PageRow): DbPage {
     seo: (r.seo ?? {}) as Record<string, string>,
     content: (r.content ?? {}) as Record<string, unknown>,
     layout: Array.isArray(r.layout) ? (r.layout as PageLayoutItem[]) : [],
+    updatedAt: r.updated_at ? new Date(String(r.updated_at)).toISOString() : null,
   };
 }
 
 export async function getPages(): Promise<DbPage[]> {
-  const rows = (await sql`SELECT id, slug, name, visible, sort_order, seo, content, layout
+  const rows = (await sql`SELECT id, slug, name, visible, sort_order, seo, content, layout, updated_at
     FROM pages ORDER BY sort_order, id`) as unknown as PageRow[];
   return rows.map(normalizePage);
 }
 
 export async function getPageById(id: number): Promise<DbPage | null> {
-  const rows = (await sql`SELECT id, slug, name, visible, sort_order, seo, content, layout
+  const rows = (await sql`SELECT id, slug, name, visible, sort_order, seo, content, layout, updated_at
     FROM pages WHERE id = ${id}`) as unknown as PageRow[];
   return rows[0] ? normalizePage(rows[0]) : null;
 }
 
 export async function getPageBySlug(slug: string): Promise<DbPage | null> {
-  const rows = (await sql`SELECT id, slug, name, visible, sort_order, seo, content, layout
+  const rows = (await sql`SELECT id, slug, name, visible, sort_order, seo, content, layout, updated_at
     FROM pages WHERE slug = ${slug}`) as unknown as PageRow[];
   return rows[0] ? normalizePage(rows[0]) : null;
+}
+
+/** Máximo updated_at de todas las páginas (última modificación del contenido). */
+export async function getLatestPageUpdatedAt(): Promise<string | null> {
+  const rows = (await sql`SELECT MAX(updated_at) AS m FROM pages`) as unknown as {
+    m: unknown;
+  }[];
+  const m = rows[0]?.m;
+  return m ? new Date(String(m)).toISOString() : null;
 }
 
 export async function upsertPage(input: {
@@ -120,7 +133,7 @@ export async function upsertPage(input: {
   if (input.id) {
     await sql`UPDATE pages SET slug = ${slug}, name = ${input.name}, visible = ${input.visible},
       seo = ${JSON.stringify(input.seo)}::jsonb, content = ${JSON.stringify(input.content)}::jsonb,
-      layout = ${JSON.stringify(input.layout)}::jsonb
+      layout = ${JSON.stringify(input.layout)}::jsonb, updated_at = now()
       WHERE id = ${input.id}`;
     return input.id;
   }
@@ -135,7 +148,7 @@ export async function upsertPage(input: {
 }
 
 export async function setPageVisibility(id: number, visible: boolean) {
-  await sql`UPDATE pages SET visible = ${visible} WHERE id = ${id}`;
+  await sql`UPDATE pages SET visible = ${visible}, updated_at = now() WHERE id = ${id}`;
 }
 
 export async function removePage(id: number) {

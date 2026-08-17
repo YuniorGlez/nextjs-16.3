@@ -30,7 +30,8 @@ await sql`CREATE TABLE IF NOT EXISTS pages (
   sort_order INT NOT NULL DEFAULT 0,
   seo JSONB NOT NULL DEFAULT '{}'::jsonb,
   content JSONB NOT NULL DEFAULT '{}'::jsonb,
-  layout JSONB NOT NULL DEFAULT '[]'::jsonb
+  layout JSONB NOT NULL DEFAULT '[]'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 )`;
 // Historial de versiones por página: snapshot completo del estado de la página
 // en cada guardado (permite listar y restaurar versiones anteriores).
