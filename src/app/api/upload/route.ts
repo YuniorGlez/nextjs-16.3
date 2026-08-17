@@ -3,6 +3,7 @@ import { put } from "@vercel/blob";
 import { isAdmin } from "@/lib/auth";
 import { blobConfigured } from "@/lib/blob";
 import { optimizeImage } from "@/lib/optimize";
+import { getClientIp, uploadLimiter } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,20 @@ const EXT_BY_TYPE: Record<string, string> = {
 export async function POST(request: NextRequest) {
   if (!(await isAdmin())) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  // Rate-limit por IP: 20 subidas / 10 min. Solo cuenta a admins autenticados
+  // (el 401 sale antes) y se comprueba antes de parsear el multipart.
+  const rl = uploadLimiter.check(getClientIp(request.headers));
+  if (!rl.allowed) {
+    const retryAfter = Math.max(1, Math.ceil(rl.retryAfterSeconds));
+    return NextResponse.json(
+      {
+        error: `Demasiadas subidas. Inténtalo en ${Math.ceil(rl.retryAfterSeconds / 60)} min.`,
+        retryAfter,
+      },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } },
+    );
   }
 
   const formData = await request.formData();

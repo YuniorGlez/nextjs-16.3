@@ -2,6 +2,7 @@ import { neon } from "@neondatabase/serverless";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { siteConfig } from "@/lib/site";
+import { buildSecurityHeaders } from "@/lib/security-headers";
 
 // Cliente neon creado de forma perezosa (evita lanzar en import si falta
 // DATABASE_URL; el driver HTTP de neon funciona en Node y en edge).
@@ -35,6 +36,15 @@ export async function proxy(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
   const isProduction = host === siteConfig.productionHost;
 
+  // Cabeceras de seguridad en TODAS las respuestas que pasa el proxy
+  // (páginas, redirects 301, no-prod...). HSTS solo en dominio de producción
+  // y CSP solo en build de producción (ver src/lib/security-headers.ts).
+  const securityHeaders = buildSecurityHeaders({
+    host,
+    productionHost: siteConfig.productionHost,
+    isProductionBuild: process.env.NODE_ENV === "production",
+  });
+
   // Redirecciones 301 de slugs del CMS (SEO): /slug-antiguo → /slug-nuevo.
   // Solo GET/HEAD de un segmento que parezca un slug; el resto pasa de largo.
   if (
@@ -54,7 +64,11 @@ export async function proxy(request: NextRequest) {
           const url = new URL(target, request.url);
           // Conserva la query string (UTM, etc.) en el destino.
           url.search = request.nextUrl.search;
-          return NextResponse.redirect(url, 301);
+          const response = NextResponse.redirect(url, 301);
+          for (const [name, value] of Object.entries(securityHeaders)) {
+            response.headers.set(name, value);
+          }
+          return response;
         }
       }
     } catch {
@@ -62,12 +76,13 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  if (isProduction) {
-    return NextResponse.next();
-  }
-
   const response = NextResponse.next();
-  response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  for (const [name, value] of Object.entries(securityHeaders)) {
+    response.headers.set(name, value);
+  }
+  if (!isProduction) {
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  }
   return response;
 }
 

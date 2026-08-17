@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSession, destroySession, getCurrentAdmin, isAdmin, type AdminSession } from "@/lib/auth";
@@ -15,6 +16,7 @@ import {
   authenticateAdmin,
 } from "@/lib/admins";
 import { hashPassword, validatePassword, verifyPassword } from "@/lib/passwords";
+import { getClientIp, loginLimiter } from "@/lib/rate-limit";
 import {
   createPageVersion,
   deleteContactMessage,
@@ -55,6 +57,16 @@ async function requireAdmin(): Promise<AdminSession> {
 
 // ---------- Sesión ----------
 export async function loginAction(data: FormData) {
+  // Rate-limit por IP (5 intentos / 15 min), mismo límite que /api/login.
+  const headerList = await headers();
+  const rl = loginLimiter.check(getClientIp(headerList));
+  if (!rl.allowed) {
+    return {
+      ok: false as const,
+      error: `Demasiados intentos. Inténtalo en ${Math.ceil(rl.retryAfterSeconds / 60)} min.`,
+    };
+  }
+
   const email = String(data.get("email") ?? "");
   const pwd = String(data.get("password") ?? "");
   const admin = await authenticateAdmin(email, pwd);
