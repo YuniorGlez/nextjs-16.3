@@ -2,12 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { createSession, destroySession, getCurrentAdmin, isAdmin, type AdminSession } from "@/lib/auth";
 import {
-  checkPassword,
-  createSession,
-  destroySession,
-  isAdmin,
-} from "@/lib/auth";
+  createAdmin,
+  deleteAdminById,
+  getAdminById,
+  getAdminByEmail,
+  countAdmins,
+  normalizeEmail,
+  setAdminPassword,
+  bumpAdminTokenVersion,
+  authenticateAdmin,
+} from "@/lib/admins";
+import { hashPassword, validatePassword, verifyPassword } from "@/lib/passwords";
 import {
   createPageVersion,
   deleteContactMessage,
@@ -37,19 +44,118 @@ async function guard() {
   }
 }
 
-// ---------- Sesión ----------
-export async function loginAction(data: FormData) {
-  const pwd = String(data.get("password") ?? "");
-  if (checkPassword(pwd)) {
-    await createSession();
+/** Como guard(), pero devuelve el admin de la sesión actual. */
+async function requireAdmin(): Promise<AdminSession> {
+  const admin = await getCurrentAdmin();
+  if (!admin) {
     redirect("/admin");
   }
-  return { ok: false as const, error: "Contraseña incorrecta." };
+  return admin;
+}
+
+// ---------- Sesión ----------
+export async function loginAction(data: FormData) {
+  const email = String(data.get("email") ?? "");
+  const pwd = String(data.get("password") ?? "");
+  const admin = await authenticateAdmin(email, pwd);
+  if (!admin) {
+    return { ok: false as const, error: "Email o contraseña incorrectos." };
+  }
+  await createSession({ id: admin.id, tokenVersion: admin.tokenVersion });
+  redirect("/admin");
 }
 
 export async function logoutAction() {
   await destroySession();
   redirect("/admin");
+}
+
+// ---------- Seguridad (multi-admin) ----------
+export type SecurityActionResult = { ok: boolean; error?: string };
+
+/**
+ * Cambia la contraseña del admin en sesión. Acepta un campo opcional
+ * `current` (cambio voluntario desde /admin/seguridad); sin él (gate de
+ * primer acceso) solo se valida la nueva contraseña. En ambos casos re-crea
+ * la sesión con el nuevo token_version para no desloguear al propio admin.
+ */
+export async function changePasswordAction(data: FormData): Promise<SecurityActionResult> {
+  const me = await requireAdmin();
+  const current = String(data.get("current") ?? "");
+  const next = String(data.get("new") ?? "");
+  const confirm = String(data.get("confirm") ?? "");
+
+  if (current) {
+    const admin = await getAdminById(me.id);
+    if (!admin || !verifyPassword(current, admin.passwordHash)) {
+      return { ok: false, error: "La contraseña actual no es correcta." };
+    }
+    if (next === current) {
+      return { ok: false, error: "La nueva contraseña no puede ser igual a la actual." };
+    }
+  }
+
+  const passwordError = validatePassword(next);
+  if (passwordError) return { ok: false, error: passwordError };
+  if (next !== confirm) {
+    return { ok: false, error: "Las contraseñas no coinciden." };
+  }
+
+  const newVersion = await setAdminPassword(me.id, hashPassword(next));
+  await createSession({ id: me.id, tokenVersion: newVersion });
+  return { ok: true };
+}
+
+/** Añade un admin con contraseña temporal (cambio forzado en el primer login). */
+export async function addAdminAction(data: FormData): Promise<SecurityActionResult> {
+  await guard();
+  const email = normalizeEmail(String(data.get("email") ?? ""));
+  if (!email) {
+    return { ok: false, error: "Introduce un email válido." };
+  }
+  const tempPassword = String(data.get("password") ?? "");
+  const passwordError = validatePassword(tempPassword);
+  if (passwordError) return { ok: false, error: passwordError };
+
+  if (await getAdminByEmail(email)) {
+    return { ok: false, error: "Ya existe un admin con ese email." };
+  }
+  try {
+    await createAdmin({
+      email,
+      passwordHash: hashPassword(tempPassword),
+      mustChangePassword: true,
+      tokenVersion: 1,
+    });
+  } catch {
+    return { ok: false, error: "Ya existe un admin con ese email." };
+  }
+  revalidatePath("/admin/seguridad");
+  return { ok: true };
+}
+
+export async function deleteAdminAction(id: number): Promise<SecurityActionResult> {
+  const me = await requireAdmin();
+  if (id === me.id) {
+    return { ok: false, error: "No puedes eliminar tu propio admin." };
+  }
+  if ((await countAdmins()) <= 1) {
+    return { ok: false, error: "No puedes eliminar al último admin." };
+  }
+  await deleteAdminById(id);
+  revalidatePath("/admin/seguridad");
+  return { ok: true };
+}
+
+export async function revokeSessionsAction(id: number): Promise<SecurityActionResult> {
+  await guard();
+  const admin = await getAdminById(id);
+  if (!admin) {
+    return { ok: false, error: "Ese admin ya no existe." };
+  }
+  await bumpAdminTokenVersion(id);
+  revalidatePath("/admin/seguridad");
+  return { ok: true };
 }
 
 // ---------- Carta (guardado masivo) ----------

@@ -58,6 +58,18 @@ await sql`CREATE TABLE IF NOT EXISTS contact_messages (
   read BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 )`;
+// Administradores del panel (multi-admin email+contraseña). El primer admin se
+// crea desde el login con ADMIN_PASSWORD si la tabla está vacía (bootstrap);
+// la gestión posterior se hace desde /admin/seguridad.
+await sql`CREATE TABLE IF NOT EXISTS admins (
+  id SERIAL PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
+  token_version INT NOT NULL DEFAULT 0,
+  last_login_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+)`;
 
 const settings: Record<string, unknown> = {
   contacto: {

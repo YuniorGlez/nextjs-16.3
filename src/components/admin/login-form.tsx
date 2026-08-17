@@ -21,7 +21,7 @@ export function LoginForm() {
       if (data?.ok) {
         window.location.reload();
       } else {
-        setError(data?.error || "Contraseña incorrecta.");
+        setError(data?.error || "Email o contraseña incorrectos.");
       }
     } catch {
       setError("No se pudo conectar.");
@@ -38,9 +38,17 @@ export function LoginForm() {
             ⚙️
           </div>
           <h1 className="font-serif text-2xl font-bold">Panel de administración</h1>
-          <p className="mt-1 text-sm text-zinc-500">Introduce la contraseña para editar la web.</p>
+          <p className="mt-1 text-sm text-zinc-500">Introduce tu email y contraseña para editar la web.</p>
         </div>
         <form onSubmit={submit} className="space-y-4">
+          <input
+            type="email"
+            name="email"
+            placeholder="Email"
+            autoComplete="email"
+            required
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-zinc-100 outline-none focus:border-amber-500"
+          />
           <input
             type="password"
             name="password"
