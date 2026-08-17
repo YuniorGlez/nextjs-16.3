@@ -44,6 +44,7 @@ import { slugify } from "@/lib/slug";
 import { PAGE_DEFAULT_LAYOUT } from "@/lib/sections";
 import { ADMIN_MODULES } from "@/lib/admin-modules";
 import { PERMISSIONS, isRole, sanitizePermissions, type Permission, type AdminRole } from "@/lib/rbac";
+import { recordCurrentAdminAudit } from "@/lib/audit";
 
 async function guard(permission: Permission = PERMISSIONS.contentWrite) {
   if (!(await isAdmin())) {
@@ -121,6 +122,7 @@ export async function changePasswordAction(data: FormData): Promise<SecurityActi
 
   const newVersion = await setAdminPassword(me.id, hashPassword(next));
   await createSession({ id: me.id, tokenVersion: newVersion });
+  await recordCurrentAdminAudit({ action: "auth.password_change", entityType: "admin", entityId: me.id });
   return { ok: true };
 }
 
@@ -148,6 +150,7 @@ export async function addAdminAction(data: FormData): Promise<SecurityActionResu
   } catch {
     return { ok: false, error: "Ya existe un admin con ese email." };
   }
+  await recordCurrentAdminAudit({ action: "admin.create", entityType: "admin", metadata: { email } });
   revalidatePath("/admin/seguridad");
   return { ok: true };
 }
@@ -161,6 +164,7 @@ export async function deleteAdminAction(id: number): Promise<SecurityActionResul
     return { ok: false, error: "No puedes eliminar al último admin." };
   }
   await deleteAdminById(id);
+  await recordCurrentAdminAudit({ action: "admin.delete", entityType: "admin", entityId: id });
   revalidatePath("/admin/seguridad");
   return { ok: true };
 }
@@ -172,6 +176,7 @@ export async function revokeSessionsAction(id: number): Promise<SecurityActionRe
     return { ok: false, error: "Ese admin ya no existe." };
   }
   await bumpAdminTokenVersion(id);
+  await recordCurrentAdminAudit({ action: "admin.sessions_revoke", entityType: "admin", entityId: id });
   revalidatePath("/admin/seguridad");
   return { ok: true };
 }
@@ -187,6 +192,7 @@ export async function updateAdminAccessAction(id: number, roleInput: string, per
     return { ok: false, error: "Debe quedar al menos un superadmin." };
   }
   await updateAdminAccess(id, roleInput as AdminRole, sanitizePermissions(permissionsInput));
+  await recordCurrentAdminAudit({ action: "admin.access_update", entityType: "admin", entityId: id, metadata: { role: roleInput } });
   revalidatePath("/admin/seguridad");
   return { ok: true };
 }
@@ -201,6 +207,7 @@ export async function saveMenu(
 ) {
   await guard(PERMISSIONS.menu);
   await saveMenuDb(cats);
+  await recordCurrentAdminAudit({ action: "menu.save", entityType: "menu", metadata: { categories: cats.length } });
   revalidatePath("/admin");
   revalidatePath("/");
 }
@@ -214,6 +221,7 @@ export async function saveCategory(data: FormData) {
     name: String(data.get("name") ?? "").trim(),
     emoji: String(data.get("emoji") ?? "").trim(),
   });
+  await recordCurrentAdminAudit({ action: id ? "category.update" : "category.create", entityType: "category", entityId: id, metadata: { name: String(data.get("name") ?? "").trim() } });
   revalidatePath("/admin");
   revalidatePath("/");
 }
@@ -221,6 +229,7 @@ export async function saveCategory(data: FormData) {
 export async function deleteCategoryAction(id: number) {
   await guard(PERMISSIONS.menu);
   await removeCategory(id);
+  await recordCurrentAdminAudit({ action: "category.delete", entityType: "category", entityId: id });
   revalidatePath("/admin");
   revalidatePath("/");
 }
@@ -236,6 +245,7 @@ export async function saveItem(data: FormData) {
     description: String(data.get("description") ?? "").trim(),
     price: String(data.get("price") ?? "").trim(),
   });
+  await recordCurrentAdminAudit({ action: id ? "item.update" : "item.create", entityType: "item", entityId: id, metadata: { name: String(data.get("name") ?? "").trim() } });
   revalidatePath("/admin");
   revalidatePath("/");
 }
@@ -243,6 +253,7 @@ export async function saveItem(data: FormData) {
 export async function deleteItem(id: number) {
   await guard(PERMISSIONS.menu);
   await removeItem(id);
+  await recordCurrentAdminAudit({ action: "item.delete", entityType: "item", entityId: id });
   revalidatePath("/admin");
   revalidatePath("/");
 }
@@ -257,6 +268,7 @@ export async function saveSettings(partial: Record<string, unknown>) {
   if (keys.length === 0) await requirePermission(PERMISSIONS.contentWrite);
   await Promise.all(keys.map((key) => requirePermission(settingPermissions[key] ?? PERMISSIONS.contentWrite)));
   await updateSettings(partial);
+  await recordCurrentAdminAudit({ action: "settings.update", entityType: "settings", metadata: { keys } });
   revalidatePath("/admin");
   revalidatePath("/");
 }
@@ -274,6 +286,7 @@ export async function saveModules(flags: Record<string, boolean>) {
     if (m.required) clean[m.id] = true;
   }
   await updateSettings({ modules: clean });
+  await recordCurrentAdminAudit({ action: "modules.update", entityType: "settings", metadata: { modules: clean } });
   revalidatePath("/admin");
   revalidatePath("/");
 }
@@ -303,6 +316,7 @@ export async function createPage(
     content: {},
     layout: PAGE_DEFAULT_LAYOUT,
   });
+  await recordCurrentAdminAudit({ action: "page.create", entityType: "page", entityId: id, metadata: { slug, name } });
   revalidatePath("/admin/paginas");
   revalidatePath("/");
   redirect(`/admin/paginas/${id}`);
@@ -339,6 +353,7 @@ export async function updatePage(input: {
     layout: input.layout,
     content: input.content,
   });
+  await recordCurrentAdminAudit({ action: "page.update", entityType: "page", entityId: input.id, metadata: { slug, visible: input.visible } });
   // Si cambió el slug, registrar redirección 301 del slug antiguo al nuevo
   // (el proxy la emite en el edge). Un fallo aquí no debe romper el guardado.
   if (current && current.slug !== slug) {
@@ -395,6 +410,7 @@ export async function restorePageVersionAction(
     layout: snapshot.layout,
     content: snapshot.content,
   });
+  await recordCurrentAdminAudit({ action: "page.restore", entityType: "page", entityId: pageId, metadata: { versionId } });
   // Si restaurar cambió el slug (volver a un slug anterior), registrar la
   // redirección 301 desde el slug actual para no romper enlaces existentes.
   if (slug !== current.slug) {
@@ -417,6 +433,7 @@ export async function publishPageAction(id: number) {
   const page = await getPageById(id);
   if (!page) throw new Error("La página no existe.");
   await publishPage(id);
+  await recordCurrentAdminAudit({ action: "page.publish", entityType: "page", entityId: id });
   revalidatePath("/admin/paginas");
   revalidatePath("/");
   revalidatePath(`/${page.slug}`);
@@ -426,6 +443,7 @@ export async function publishPageAction(id: number) {
 export async function togglePageVisibility(id: number, visible: boolean) {
   await guard();
   await setPageVisibility(id, visible);
+  await recordCurrentAdminAudit({ action: "page.visibility", entityType: "page", entityId: id, metadata: { visible } });
   revalidatePath("/admin/paginas");
   revalidatePath("/");
 }
@@ -433,6 +451,7 @@ export async function togglePageVisibility(id: number, visible: boolean) {
 export async function deletePageAction(id: number) {
   await guard();
   await removePage(id);
+  await recordCurrentAdminAudit({ action: "page.delete", entityType: "page", entityId: id });
   revalidatePath("/admin/paginas");
   revalidatePath("/");
   redirect("/admin/paginas");
@@ -442,11 +461,13 @@ export async function deletePageAction(id: number) {
 export async function setMessageReadAction(id: number, read: boolean) {
   await guard(PERMISSIONS.messagesManage);
   await setMessageRead(id, read);
+  await recordCurrentAdminAudit({ action: "message.read", entityType: "contact_message", entityId: id, metadata: { read } });
   revalidatePath("/admin/mensajes");
 }
 
 export async function deleteMessageAction(id: number) {
   await guard(PERMISSIONS.messagesManage);
   await deleteContactMessage(id);
+  await recordCurrentAdminAudit({ action: "message.delete", entityType: "contact_message", entityId: id });
   revalidatePath("/admin/mensajes");
 }

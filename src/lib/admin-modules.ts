@@ -76,6 +76,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { href: "/admin/legal", label: "Datos legales", icon: SCALE, moduleId: "core", permission: "legal.manage" },
   { href: "/admin/estilo", label: "Estilo y marca", icon: PALETTE, moduleId: "core", permission: "branding.manage" },
   { href: "/admin/seguridad", label: "Seguridad", icon: LOCK, moduleId: "core", permission: "security.manage" },
+  { href: "/admin/auditoria", label: "Auditoría", icon: FILE, moduleId: "core", permission: "audit.read" },
   {
     href: "/admin/modulos",
     label: "Módulos",

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { COOKIE_NAME, issueToken } from "@/lib/auth";
 import { authenticateAdmin } from "@/lib/admins";
 import { getClientIp, loginLimiter } from "@/lib/rate-limit";
+import { recordAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -41,6 +42,10 @@ export async function POST(req: NextRequest) {
   const admin = await authenticateAdmin(email, pwd);
 
   if (admin) {
+    await recordAudit({
+      admin: { id: admin.id, email: admin.email }, action: "auth.login_success", entityType: "admin",
+      entityId: admin.id, ip: req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip"), userAgent: req.headers.get("user-agent"),
+    });
     const json = NextResponse.json({ ok: true });
     json.cookies.set(COOKIE_NAME, issueToken(admin.id, admin.tokenVersion), {
       httpOnly: true,
@@ -51,6 +56,8 @@ export async function POST(req: NextRequest) {
     });
     return json;
   }
+
+  await recordAudit({ action: "auth.login_failure", entityType: "admin", metadata: { email: email.trim().toLowerCase() }, ip: req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip"), userAgent: req.headers.get("user-agent") });
 
   if (wantsJson) {
     return NextResponse.json({ ok: false, error: "Email o contraseña incorrectos." });

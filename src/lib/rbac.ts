@@ -15,6 +15,7 @@ export const PERMISSIONS = {
   messagesRead: "messages.read",
   messagesManage: "messages.manage",
   security: "security.manage",
+  auditRead: "audit.read",
   modules: "modules.manage",
   legal: "legal.manage",
   navigation: "navigation.manage",
@@ -79,6 +80,7 @@ export function permissionLabel(permission: Permission): string {
 
 export function routePermission(pathname: string): Permission {
   if (pathname.startsWith("/admin/seguridad")) return PERMISSIONS.security;
+  if (pathname.startsWith("/admin/auditoria")) return PERMISSIONS.auditRead;
   if (pathname.startsWith("/admin/modulos")) return PERMISSIONS.modules;
   if (pathname.startsWith("/admin/seo")) return PERMISSIONS.seo;
   if (pathname.startsWith("/admin/imagenes")) return PERMISSIONS.mediaUpload;

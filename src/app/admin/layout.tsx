@@ -7,7 +7,7 @@ import { LoginForm } from "@/components/admin/login-form";
 import { ChangePasswordGate } from "@/components/admin/change-password-gate";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { hasPermission, routePermission } from "@/lib/rbac";
+import { hasPermission, routePermission, PERMISSIONS } from "@/lib/rbac";
 
 export const metadata = {
   robots: { index: false, follow: false },
@@ -30,7 +30,7 @@ export default async function AdminLayout({
   }
 
   const requestPath = (await headers()).get("x-invoke-path") ?? (await headers()).get("next-url");
-  if (requestPath && requestPath.startsWith("/admin/") && !hasPermission(admin, routePermission(requestPath))) {
+  if (requestPath && requestPath.startsWith("/admin/") && !hasPermission(admin, routePermission(requestPath)) && !(requestPath.startsWith("/admin/auditoria") && hasPermission(admin, PERMISSIONS.security))) {
     notFound();
   }
 

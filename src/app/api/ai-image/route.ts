@@ -3,6 +3,7 @@ import { requirePermission } from "@/lib/auth";
 import { PERMISSIONS } from "@/lib/rbac";
 import { generateAiImage, AI_ASPECTS, AI_QUALITIES, ApiError } from "@/lib/openrouter";
 import { blobConfigured, saveBufferToBlob } from "@/lib/blob";
+import { recordCurrentAdminAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
     }
     // Sin Blob configurado: devolvemos la imagen como data URL para que el
     // cliente pueda previsualizarla e intentar subirla por /api/upload.
+    await recordCurrentAdminAudit({ action: "media.ai_generate", entityType: "media", metadata: { mode, aspectRatio, quality, temporary: true } });
     return NextResponse.json({
       dataUrl: `data:${mediaType};base64,${b64}`,
       temporary: true,
