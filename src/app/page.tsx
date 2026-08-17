@@ -3,6 +3,7 @@ import { SiteNav } from "@/components/site-nav";
 import { SiteAnimations } from "@/components/site-animations";
 import { brandingCss, normalizeBranding } from "@/lib/branding";
 import { normalizeLegal } from "@/lib/legal";
+import { normalizeNav } from "@/lib/nav";
 import { siteConfig } from "@/lib/site";
 import type { MenuCategory } from "@/lib/data";
 import {
@@ -47,12 +48,13 @@ export default async function Home() {
   const branding = normalizeBranding(settings.branding);
   const contacto = (settings.contacto ?? {}) as ContactoContent;
   const legal = normalizeLegal(settings.legal);
+  const nav = normalizeNav(settings.nav, pages);
 
   return (
     <>
       <style>{brandingCss(branding)}</style>
       <JsonLd />
-      <SiteNav pages={pages} brandName={siteConfig.name} />
+      <SiteNav pages={pages} brandName={siteConfig.name} nav={nav} />
       <SiteAnimations>
         <main>
           <LandingSections
