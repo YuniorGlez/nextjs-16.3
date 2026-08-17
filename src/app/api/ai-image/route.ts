@@ -1,13 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermission } from "@/lib/auth";
 import { PERMISSIONS } from "@/lib/rbac";
-import { generateAiImage, AI_ASPECTS, AI_QUALITIES, ApiError } from "@/lib/openrouter";
+import { generateAiImage, ApiError } from "@/lib/openrouter";
+import { AI_ASPECTS, AI_QUALITIES, AI_IMAGE_MODELS } from "@/lib/ai-images";
 import { blobConfigured, saveBufferToBlob } from "@/lib/blob";
 import { recordCurrentAdminAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
+// qwen-image-3-pro puede tardar ~135 s; pedimos el máximo permitido por Vercel.
+// (En plan Hobby Vercel puede recortarlo a 60 s: en ese caso qwen no llegará a
+// terminar, pero las otras dos imágenes se guardan igual.)
+export const maxDuration = 300;
 
 const MAX_PROMPT = 2000;
+
+type ImageResult = {
+  model: string;
+  url?: string;
+  dataUrl?: string;
+  temporary?: boolean;
+  aspectRatio?: string;
+  quality?: string;
+  error?: string;
+};
+
+function slugOf(model: string): string {
+  return (model.split("/").pop() ?? "ia").replace(/[^a-zA-Z0-9.-]/g, "_");
+}
 
 export async function POST(request: NextRequest) {
   try { await requirePermission(PERMISSIONS.mediaAi); } catch { return NextResponse.json({ error: "No autorizado" }, { status: 401 }); }
@@ -46,32 +65,34 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  try {
-    const { b64, mediaType } = await generateAiImage({
-      mode,
-      prompt,
-      imageUrl: mode === "edit" ? imageUrl : undefined,
-      aspectRatio,
-      quality,
-    });
-    const buffer = Buffer.from(b64, "base64");
-    if (blobConfigured()) {
-      const url = await saveBufferToBlob(buffer, mediaType, "ia", "ia.png");
-      return NextResponse.json({ url, aspectRatio, quality });
-    }
-    // Sin Blob configurado: devolvemos la imagen como data URL para que el
-    // cliente pueda previsualizarla e intentar subirla por /api/upload.
-    await recordCurrentAdminAudit({ action: "media.ai_generate", entityType: "media", metadata: { mode, aspectRatio, quality, temporary: true } });
-    return NextResponse.json({
-      dataUrl: `data:${mediaType};base64,${b64}`,
-      temporary: true,
-      aspectRatio,
-      quality,
-    });
-  } catch (e) {
-    if (e instanceof ApiError) {
-      return NextResponse.json({ error: e.message }, { status: e.status });
-    }
-    return NextResponse.json({ error: "Error generando la imagen." }, { status: 500 });
-  }
+  // Lanzamos todos los modelos en paralelo; cada tarea gestiona su propio fallo
+  // para que el resultado de un modelo no bloquee al resto.
+  const results = await Promise.all(
+    AI_IMAGE_MODELS.map(async (model): Promise<ImageResult> => {
+      try {
+        const { b64, mediaType } = await generateAiImage({
+          model,
+          mode,
+          prompt,
+          imageUrl: mode === "edit" ? imageUrl : undefined,
+          aspectRatio,
+          quality,
+        });
+        const buffer = Buffer.from(b64, "base64");
+        if (blobConfigured()) {
+          const url = await saveBufferToBlob(buffer, mediaType, "ia", `${slugOf(model)}.png`);
+          return { model, url, aspectRatio, quality };
+        }
+        // Sin Blob configurado: data URL temporal (el cliente puede subirla).
+        return { model, dataUrl: `data:${mediaType};base64,${b64}`, temporary: true, aspectRatio, quality };
+      } catch (e) {
+        const msg = e instanceof ApiError ? e.message : "Error generando la imagen.";
+        return { model, error: msg, aspectRatio, quality };
+      }
+    }),
+  );
+
+  await recordCurrentAdminAudit({ action: "media.ai_generate", entityType: "media", metadata: { mode, aspectRatio, quality, models: AI_IMAGE_MODELS } });
+
+  return NextResponse.json({ results, aspectRatio, quality });
 }
