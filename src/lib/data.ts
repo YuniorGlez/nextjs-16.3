@@ -1,4 +1,5 @@
 import { sql } from "@/lib/db";
+import { computeRedirectMoves, type RedirectMoves } from "@/lib/redirects";
 import { slugify } from "@/lib/slug";
 
 export type DbCategory = {
@@ -139,6 +140,49 @@ export async function setPageVisibility(id: number, visible: boolean) {
 
 export async function removePage(id: number) {
   await sql`DELETE FROM pages WHERE id = ${id}`;
+}
+
+// ---------- Redirecciones 301 de slugs ----------
+// Tabla independiente (sin FK a pages): las redirecciones sobreviven aunque
+// se borre la página. Al cambiar un slug se registra from=slug antiguo →
+// to=slug nuevo y se encadenan las filas que apuntaban al slug antiguo.
+export type DbRedirect = { from: string; to: string };
+
+export async function getPageRedirects(): Promise<DbRedirect[]> {
+  const rows = (await sql`SELECT from_slug, to_slug FROM page_redirects`) as unknown as {
+    from_slug: string;
+    to_slug: string;
+  }[];
+  return rows.map((r) => ({ from: r.from_slug, to: r.to_slug }));
+}
+
+export async function applyRedirectMoves(moves: RedirectMoves) {
+  for (const u of moves.updates) {
+    await sql`UPDATE page_redirects SET to_slug = ${u.to} WHERE from_slug = ${u.from}`;
+  }
+  for (const i of moves.inserts) {
+    await sql`INSERT INTO page_redirects (from_slug, to_slug) VALUES (${i.from}, ${i.to})
+      ON CONFLICT (from_slug) DO UPDATE SET to_slug = EXCLUDED.to_slug`;
+  }
+}
+
+/**
+ * Registra la redirección `fromSlug → toSlug` encadenando las existentes.
+ * No-op si el slug no cambia de verdad (incluidos auto-bucles).
+ */
+export async function registerPageRedirect(fromSlug: string, toSlug: string) {
+  const existing = await getPageRedirects();
+  const moves = computeRedirectMoves(fromSlug, toSlug, existing);
+  if (moves.inserts.length === 0 && moves.updates.length === 0) return;
+  await applyRedirectMoves(moves);
+}
+
+/** Devuelve el destino de una redirección (o null si no hay). Para proxy.ts. */
+export async function getRedirectTarget(fromSlug: string): Promise<string | null> {
+  const rows = (await sql`SELECT to_slug FROM page_redirects WHERE from_slug = ${fromSlug}`) as unknown as {
+    to_slug: string;
+  }[];
+  return rows[0]?.to_slug ?? null;
 }
 
 // ---------- Historial de versiones por página ----------

@@ -13,6 +13,7 @@ import {
   getPageById,
   getPageBySlug,
   prunePageVersions,
+  registerPageRedirect,
   removeCategory,
   removeItem,
   removePage,
@@ -174,6 +175,15 @@ export async function updatePage(input: {
     layout: input.layout,
     content: input.content,
   });
+  // Si cambió el slug, registrar redirección 301 del slug antiguo al nuevo
+  // (el proxy la emite en el edge). Un fallo aquí no debe romper el guardado.
+  if (current && current.slug !== slug) {
+    try {
+      await registerPageRedirect(current.slug, slug);
+    } catch (err) {
+      console.error("No se pudo registrar la redirección 301:", err);
+    }
+  }
   await prunePageVersions(input.id, 20);
   revalidatePath("/admin/paginas");
   revalidatePath("/");
@@ -221,6 +231,15 @@ export async function restorePageVersionAction(
     layout: snapshot.layout,
     content: snapshot.content,
   });
+  // Si restaurar cambió el slug (volver a un slug anterior), registrar la
+  // redirección 301 desde el slug actual para no romper enlaces existentes.
+  if (slug !== current.slug) {
+    try {
+      await registerPageRedirect(current.slug, slug);
+    } catch (err) {
+      console.error("No se pudo registrar la redirección 301:", err);
+    }
+  }
   await prunePageVersions(pageId, 20);
   revalidatePath("/admin/paginas");
   revalidatePath("/");

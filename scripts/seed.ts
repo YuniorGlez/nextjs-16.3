@@ -40,6 +40,14 @@ await sql`CREATE TABLE IF NOT EXISTS page_versions (
   snapshot JSONB NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 )`;
+// Redirecciones 301 de slugs: tabla independiente (sin FK a pages) para que
+// las redirecciones sobrevivan aunque se borre la página.
+await sql`CREATE TABLE IF NOT EXISTS page_redirects (
+  id SERIAL PRIMARY KEY,
+  from_slug TEXT NOT NULL UNIQUE,
+  to_slug TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+)`;
 
 const settings: Record<string, unknown> = {
   contacto: {
