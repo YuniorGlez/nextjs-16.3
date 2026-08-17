@@ -32,6 +32,14 @@ await sql`CREATE TABLE IF NOT EXISTS pages (
   content JSONB NOT NULL DEFAULT '{}'::jsonb,
   layout JSONB NOT NULL DEFAULT '[]'::jsonb
 )`;
+// Historial de versiones por página: snapshot completo del estado de la página
+// en cada guardado (permite listar y restaurar versiones anteriores).
+await sql`CREATE TABLE IF NOT EXISTS page_versions (
+  id SERIAL PRIMARY KEY,
+  page_id INT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  snapshot JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+)`;
 
 const settings: Record<string, unknown> = {
   contacto: {

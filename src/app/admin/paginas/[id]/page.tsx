@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getMenu, getPageById } from "@/lib/data";
+import { getMenu, getPageById, listPageVersions } from "@/lib/data";
 import { PageEditor } from "@/components/admin/page-editor";
 
 export const dynamic = "force-dynamic";
@@ -15,13 +15,18 @@ export default async function PageEditPage({
 
   let page: Awaited<ReturnType<typeof getPageById>> = null;
   let menu: Awaited<ReturnType<typeof getMenu>> = [];
+  let versions: Awaited<ReturnType<typeof listPageVersions>> = [];
   try {
-    [page, menu] = await Promise.all([getPageById(numId), getMenu()]);
+    [page, menu, versions] = await Promise.all([
+      getPageById(numId),
+      getMenu(),
+      listPageVersions(numId),
+    ]);
   } catch {
     // BD no disponible
   }
 
   if (!page) notFound();
 
-  return <PageEditor page={page} menu={menu} />;
+  return <PageEditor page={page} menu={menu} versions={versions} />;
 }

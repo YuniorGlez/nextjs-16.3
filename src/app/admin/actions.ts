@@ -9,10 +9,14 @@ import {
   isAdmin,
 } from "@/lib/auth";
 import {
+  createPageVersion,
+  getPageById,
   getPageBySlug,
+  prunePageVersions,
   removeCategory,
   removeItem,
   removePage,
+  restorePageVersion,
   saveMenu as saveMenuDb,
   setPageVisibility,
   updateSettings,
@@ -155,6 +159,12 @@ export async function updatePage(input: {
   if (other && other.id !== input.id) {
     throw new Error(`La URL /${slug} ya la usa otra página.`);
   }
+  // Snapshot del estado actual ANTES de guardar: cada versión es un estado
+  // previo al que se puede volver desde el historial.
+  const current = await getPageById(input.id);
+  if (current) {
+    await createPageVersion(current);
+  }
   await upsertPage({
     id: input.id,
     slug,
@@ -164,9 +174,59 @@ export async function updatePage(input: {
     layout: input.layout,
     content: input.content,
   });
+  await prunePageVersions(input.id, 20);
   revalidatePath("/admin/paginas");
   revalidatePath("/");
   revalidatePath(`/${slug}`);
+}
+
+export type RestorePageVersionResult =
+  | { ok: true; slug: string; slugChanged: boolean }
+  | { ok: false; error: string };
+
+/**
+ * Restaura una página al estado de una versión guardada. Si el slug del
+ * snapshot ya lo usa otra página, se restaura todo menos el slug (se conserva
+ * el actual) y se avisa con `slugChanged`.
+ */
+export async function restorePageVersionAction(
+  pageId: number,
+  versionId: number,
+): Promise<RestorePageVersionResult> {
+  await guard();
+  const current = await getPageById(pageId);
+  if (!current) {
+    return { ok: false, error: "La página no existe." };
+  }
+  const snapshot = await restorePageVersion(pageId, versionId);
+  if (!snapshot) {
+    return { ok: false, error: "La versión no existe." };
+  }
+  // Guarda también el estado actual como versión, para poder deshacer la restauración.
+  await createPageVersion(current);
+  // Conflicto de slug: si otra página ya lo usa, se restaura todo menos el slug.
+  let slug = snapshot.slug;
+  let slugChanged = false;
+  const other = await getPageBySlug(slug);
+  if (other && other.id !== pageId) {
+    slug = current.slug;
+    slugChanged = true;
+  }
+  await upsertPage({
+    id: pageId,
+    slug,
+    name: snapshot.name,
+    visible: snapshot.visible,
+    seo: snapshot.seo,
+    layout: snapshot.layout,
+    content: snapshot.content,
+  });
+  await prunePageVersions(pageId, 20);
+  revalidatePath("/admin/paginas");
+  revalidatePath("/");
+  revalidatePath(`/${slug}`);
+  if (slugChanged) revalidatePath(`/${current.slug}`);
+  return { ok: true, slug, slugChanged };
 }
 
 export async function togglePageVisibility(id: number, visible: boolean) {

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAdminSave, useToast } from "@/app/admin/shell";
 import { ImageField } from "@/components/admin/image-field";
 import { MarkdownEditor } from "@/components/admin/markdown-editor";
+import { useHistory } from "@/hooks/use-history";
 import { renderMarkdown } from "@/lib/markdown";
 import { SECTION_DEFS } from "@/lib/sections";
 import { siteConfig } from "@/lib/site";
@@ -16,6 +17,7 @@ type NItem = { n: string; t: string };
 type TItem = { texto: string; autor: string; rol: string };
 type QItem = { pregunta: string; respuesta: string };
 type Sect = { key: string; label: string; visible: boolean };
+type BuilderSnapshot = { sections: Sect[]; content: Record<string, unknown> };
 
 const inputCls =
   "w-full bg-zinc-950 border border-white/15 rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500";
@@ -49,23 +51,35 @@ export function SectionsEditor({
   const saveState = useAdminSave();
   const toast = useToast();
 
-  const [sections, setSections] = useState<Sect[]>(() => {
-    if (initialSections.length) {
-      return initialSections.map((l) => ({
+  const initSections: Sect[] = initialSections.length
+    ? initialSections.map((l) => ({
         key: l.key,
         label: SECTION_DEFS.find((s) => s.key === l.key)?.label ?? l.key,
         visible: l.visible !== false,
-      }));
-    }
-    return SECTION_DEFS.map((s) => ({ ...s, visible: true }));
-  });
+      }))
+    : SECTION_DEFS.map((s) => ({ ...s, visible: true }));
+
+  const [sections, setSections] = useState<Sect[]>(initSections);
   const [content, setContent] = useState<Record<string, unknown>>(initialContent);
-  const [selected, setSelected] = useState<string>(() => sections[0]?.key ?? "hero");
+  const [selected, setSelected] = useState<string>(() => initSections[0]?.key ?? "hero");
+  // Historial local de {sections, content} para deshacer/rehacer en el builder.
+  const history = useHistory<BuilderSnapshot>({
+    sections: initSections,
+    content: initialContent,
+  });
 
   const mark = () => saveState.setDirty(true);
-  function patch(key: string, value: unknown) {
-    setContent((c) => ({ ...c, [key]: value }));
+
+  /** Aplica una mutación registrando el estado previo en el historial. */
+  function commit(next: BuilderSnapshot) {
+    history.push({ sections, content });
+    setSections(next.sections);
+    setContent(next.content);
     mark();
+  }
+
+  function patch(key: string, value: unknown) {
+    commit({ sections, content: { ...content, [key]: value } });
   }
 
   useEffect(() => {
@@ -91,35 +105,33 @@ export function SectionsEditor({
 
   /* ---------- helpers de edición ---------- */
   function move(key: string, dir: -1 | 1) {
-    setSections((arrL) => {
-      const i = arrL.findIndex((s) => s.key === key);
-      const j = i + dir;
-      if (i < 0 || j < 0 || j >= arrL.length) return arrL;
-      const copy = [...arrL];
-      [copy[i], copy[j]] = [copy[j], copy[i]];
-      return copy;
-    });
-    mark();
+    const i = sections.findIndex((s) => s.key === key);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= sections.length) return;
+    const copy = [...sections];
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+    commit({ sections: copy, content });
   }
   function toggleVisible(key: string) {
-    setSections((arrL) => arrL.map((s) => (s.key === key ? { ...s, visible: !s.visible } : s)));
-    mark();
+    commit({
+      sections: sections.map((s) => (s.key === key ? { ...s, visible: !s.visible } : s)),
+      content,
+    });
   }
   function removeSection(key: string) {
-    setSections((arrL) => arrL.filter((s) => s.key !== key));
-    setContent((c) => {
-      const { [key]: _drop, ...rest } = c;
-      return rest;
-    });
+    const nextContent = { ...content };
+    delete nextContent[key];
+    commit({ sections: sections.filter((s) => s.key !== key), content: nextContent });
     if (selected === key) setSelected(sections.find((s) => s.key !== key)?.key ?? "");
-    mark();
   }
   function addSection(key: string) {
     const def = SECTION_DEFS.find((d) => d.key === key);
     if (!def || sections.some((s) => s.key === key)) return;
-    setSections((arrL) => [...arrL, { key: def.key, label: def.label, visible: true }]);
+    commit({
+      sections: [...sections, { key: def.key, label: def.label, visible: true }],
+      content,
+    });
     setSelected(key);
-    mark();
   }
   function setObj(key: string, cur: Record<string, unknown>, field: string, val: string) {
     patch(key, { ...cur, [field]: val });
@@ -129,6 +141,52 @@ export function SectionsEditor({
     (copy[i] as Record<string, unknown>)[field] = val;
     patch(key, copy);
   }
+
+  /* ---------- deshacer / rehacer ---------- */
+  function undo() {
+    if (!history.canUndo) return;
+    const prev = history.state.past[history.state.past.length - 1];
+    history.undo();
+    setSections(prev.sections);
+    setContent(prev.content);
+    mark();
+  }
+  function redo() {
+    if (!history.canRedo) return;
+    const next = history.state.future[0];
+    history.redo();
+    setSections(next.sections);
+    setContent(next.content);
+    mark();
+  }
+
+  // Atajos Ctrl/Cmd+Z (deshacer) y Ctrl/Cmd+Shift+Z o Ctrl/Cmd+Y (rehacer),
+  // solo cuando el foco no está en un input/textarea (no romper edición de texto).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      const el = document.activeElement;
+      if (
+        el &&
+        (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || (el as HTMLElement).isContentEditable)
+      ) {
+        return;
+      }
+      const k = e.key.toLowerCase();
+      if (k === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      } else if (k === "y") {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history.state]);
 
   /* ---------- contenido derivado ---------- */
   const hero = (content.hero ?? {}) as T;
@@ -325,9 +383,31 @@ export function SectionsEditor({
 
   return (
     <div>
-      <div className="admin-page-header">
-        <h1>{title}</h1>
-        <p>{description}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="admin-page-header">
+          <h1>{title}</h1>
+          <p>{description}</p>
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-2 pt-1">
+          <button
+            type="button"
+            className="admin-btn admin-btn--sm"
+            onClick={undo}
+            disabled={!history.canUndo}
+            title="Deshacer (Ctrl/Cmd+Z)"
+          >
+            ↶ Deshacer
+          </button>
+          <button
+            type="button"
+            className="admin-btn admin-btn--sm"
+            onClick={redo}
+            disabled={!history.canRedo}
+            title="Rehacer (Ctrl/Cmd+Shift+Z o Ctrl/Cmd+Y)"
+          >
+            ↷ Rehacer
+          </button>
+        </div>
       </div>
 
       <section className="admin-section">

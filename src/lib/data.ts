@@ -141,6 +141,86 @@ export async function removePage(id: number) {
   await sql`DELETE FROM pages WHERE id = ${id}`;
 }
 
+// ---------- Historial de versiones por página ----------
+// Cada guardado crea una versión con el snapshot completo del estado previo de
+// la página ({slug, name, visible, sort_order, seo, content, layout}).
+export type PageSnapshot = {
+  slug: string;
+  name: string;
+  visible: boolean;
+  sort_order: number;
+  seo: Record<string, string>;
+  content: Record<string, unknown>;
+  layout: PageLayoutItem[];
+};
+
+export type DbPageVersion = {
+  id: number;
+  pageId: number;
+  snapshot: PageSnapshot;
+  createdAt: string; // ISO 8601
+};
+
+type VersionRow = {
+  id: number;
+  page_id: number;
+  snapshot: unknown;
+  created_at: unknown;
+};
+
+function normalizeVersion(r: VersionRow): DbPageVersion {
+  return {
+    id: r.id,
+    pageId: r.page_id,
+    snapshot: (r.snapshot ?? {}) as PageSnapshot,
+    createdAt: new Date(String(r.created_at)).toISOString(),
+  };
+}
+
+/** Inserta una versión con el estado actual de la página. */
+export async function createPageVersion(page: DbPage) {
+  const snapshot: PageSnapshot = {
+    slug: page.slug,
+    name: page.name,
+    visible: page.visible,
+    sort_order: page.sortOrder,
+    seo: page.seo,
+    content: page.content,
+    layout: page.layout,
+  };
+  await sql`INSERT INTO page_versions (page_id, snapshot)
+    VALUES (${page.id}, ${JSON.stringify(snapshot)}::jsonb)`;
+}
+
+/** Lista las versiones de una página, de más reciente a más antigua. */
+export async function listPageVersions(pageId: number, limit = 20): Promise<DbPageVersion[]> {
+  const rows = (await sql`SELECT id, page_id, snapshot, created_at
+    FROM page_versions WHERE page_id = ${pageId}
+    ORDER BY created_at DESC, id DESC LIMIT ${limit}`) as unknown as VersionRow[];
+  return rows.map(normalizeVersion);
+}
+
+/**
+ * Lee el snapshot de una versión concreta (debe pertenecer a la página).
+ * Devuelve los campos para restaurar; la escritura la hace el caller.
+ */
+export async function restorePageVersion(
+  pageId: number,
+  versionId: number,
+): Promise<PageSnapshot | null> {
+  const rows = (await sql`SELECT snapshot FROM page_versions
+    WHERE id = ${versionId} AND page_id = ${pageId}`) as unknown as { snapshot: unknown }[];
+  return rows[0] ? ((rows[0].snapshot ?? {}) as PageSnapshot) : null;
+}
+
+/** Borra las versiones más antiguas de una página, dejando solo las `keep` recientes. */
+export async function prunePageVersions(pageId: number, keep = 20) {
+  await sql`DELETE FROM page_versions WHERE page_id = ${pageId} AND id NOT IN (
+    SELECT id FROM page_versions WHERE page_id = ${pageId}
+    ORDER BY created_at DESC, id DESC LIMIT ${keep}
+  )`;
+}
+
 export async function getSettings(): Promise<Settings> {
   const rows = (await sql`SELECT key, value FROM settings`) as unknown as {
     key: string;

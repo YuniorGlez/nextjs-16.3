@@ -1,23 +1,33 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { deletePageAction, updatePage } from "@/app/admin/actions";
+import { deletePageAction, restorePageVersionAction, updatePage } from "@/app/admin/actions";
 import { SectionsEditor } from "@/components/admin/sections-editor";
 import { ImageField } from "@/components/admin/image-field";
-import { useAdminSave } from "@/app/admin/shell";
+import { useAdminSave, useToast } from "@/app/admin/shell";
 import { slugify } from "@/lib/slug";
-import type { DbPage } from "@/lib/data";
+import type { DbPage, DbPageVersion } from "@/lib/data";
 import type { MenuCategory } from "@/lib/data";
 
 const inputCls =
   "w-full bg-zinc-950 border border-white/15 rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500";
 
-export function PageEditor({ page, menu }: { page: DbPage; menu: MenuCategory[] }) {
+export function PageEditor({
+  page,
+  menu,
+  versions,
+}: {
+  page: DbPage;
+  menu: MenuCategory[];
+  versions: DbPageVersion[];
+}) {
   const saveState = useAdminSave();
+  const toast = useToast();
   const [name, setName] = useState(page.name);
   const [slug, setSlug] = useState(page.slug);
   const [visible, setVisible] = useState(page.visible);
   const [seo, setSeo] = useState<Record<string, string>>({ ...page.seo });
+  const [restoring, setRestoring] = useState<number | null>(null);
 
   const markMeta = () => saveState.setDirty(true);
 
@@ -40,6 +50,33 @@ export function PageEditor({ page, menu }: { page: DbPage; menu: MenuCategory[] 
   );
 
   const slugPreview = slugify(slug) || slugify(name) || "…";
+
+  async function handleRestore(v: DbPageVersion) {
+    const when = new Date(v.createdAt).toLocaleString("es-ES");
+    const unsaved = saveState.dirty
+      ? "\n\nSe perderán los cambios sin guardar del editor."
+      : "";
+    if (!confirm(`¿Restaurar la página a la versión del ${when}?${unsaved}`)) return;
+    setRestoring(v.id);
+    try {
+      const res = await restorePageVersionAction(page.id, v.id);
+      if (res.ok) {
+        toast.push(
+          res.slugChanged
+            ? "Versión restaurada. La URL del snapshot ya la usa otra página, se conservó la actual."
+            : "Versión restaurada. La página se ha actualizado.",
+        );
+        // Recarga completa: router.refresh() no resetea el useState de los editores.
+        window.location.reload();
+      } else {
+        toast.push(res.error ?? "No se pudo restaurar la versión.", "error");
+        setRestoring(null);
+      }
+    } catch {
+      toast.push("No se pudo restaurar la versión.", "error");
+      setRestoring(null);
+    }
+  }
 
   return (
     <div>
@@ -156,6 +193,49 @@ export function PageEditor({ page, menu }: { page: DbPage; menu: MenuCategory[] 
         title="Secciones de la página"
         description="Añade, reordena o edita las secciones de esta página. Los cambios se aplican al guardar."
       />
+
+      <section className="admin-section">
+        <div className="admin-page-header">
+          <h2>Historial de versiones</h2>
+          <p>
+            Cada guardado crea una versión del estado anterior de la página. Puedes restaurar
+            cualquiera de las últimas 20 versiones.
+          </p>
+        </div>
+        <div className="admin-panel-card p-5">
+          {versions.length === 0 ? (
+            <p className="text-sm text-zinc-500">
+              Todavía no hay versiones. Se crearán automáticamente la próxima vez que guardes la página.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {versions.map((v) => (
+                <li
+                  key={v.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-zinc-950 px-3 py-2"
+                >
+                  <span className="text-sm text-zinc-300">
+                    <time dateTime={v.createdAt} suppressHydrationWarning>
+                      {new Date(v.createdAt).toLocaleString("es-ES", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })}
+                    </time>
+                  </span>
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn--sm"
+                    onClick={() => handleRestore(v)}
+                    disabled={restoring === v.id}
+                  >
+                    {restoring === v.id ? "Restaurando…" : "Restaurar"}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
 
       <div className="admin-section">
         <form
