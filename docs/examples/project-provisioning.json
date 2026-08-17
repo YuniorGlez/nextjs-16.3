@@ -1,0 +1,9 @@
+{
+  "project": {
+    "name": "Acme Café",
+    "shortName": "acme-cafe",
+    "description": "Sitio público de Acme Café",
+    "url": "https://acme.example",
+    "productionHost": "acme.example"
+  }
+}

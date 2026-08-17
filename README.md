@@ -149,6 +149,22 @@ Para automatización, comprobar primero `db:migrate:status`, ejecutar después
 sustituto del runner ni añadas rollback destructivo sin un diseño y pruebas
 específicos.
 
+## Provisionamiento no interactivo
+
+El CLI `project:provision` permite a una IA validar un contrato de cliente,
+generar configuración local de forma idempotente y ejecutar migraciones solo si
+se solicitan explícitamente. No modifica `src/lib/site.ts` ni crea proyectos
+cloud. Consulta el contrato, el ejemplo y los límites de seguridad en
+[`docs/project-provisioning.md`](docs/project-provisioning.md).
+
+```bash
+bun run project:provision -- --config /ruta/cliente.json --dry-run --json
+bun run project:provision -- --config /ruta/cliente.json --migrate --json
+```
+
+El seed nunca es implícito: requiere `--seed --allow-seed` y `DATABASE_URL`.
+
+
 ## Deploy
 
 El proyecto está configurado para desplegar en Vercel usando Bun.

@@ -13,6 +13,7 @@
     "test:coverage": "vitest run --coverage",
     "db:migrate": "bun scripts/migrate.ts up",
     "db:migrate:status": "bun scripts/migrate.ts status",
+    "project:provision": "bun scripts/provision.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky"
