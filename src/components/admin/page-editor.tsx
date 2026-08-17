@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { deletePageAction, restorePageVersionAction, updatePage } from "@/app/admin/actions";
+import { deletePageAction, publishPageAction, restorePageVersionAction, updatePage } from "@/app/admin/actions";
 import { SectionsEditor } from "@/components/admin/sections-editor";
 import { ImageField } from "@/components/admin/image-field";
 import { useAdminSave, useToast } from "@/app/admin/shell";
@@ -17,11 +17,13 @@ export function PageEditor({
   menu,
   versions,
   hiddenKeys,
+  previewToken,
 }: {
   page: DbPage;
   menu: MenuCategory[];
   versions: DbPageVersion[];
   hiddenKeys?: string[];
+  previewToken: string;
 }) {
   const saveState = useAdminSave();
   const toast = useToast();
@@ -30,6 +32,7 @@ export function PageEditor({
   const [visible, setVisible] = useState(page.visible);
   const [seo, setSeo] = useState<Record<string, string>>({ ...page.seo });
   const [restoring, setRestoring] = useState<number | null>(null);
+  const [publishing, setPublishing] = useState(false);
 
   const markMeta = () => saveState.setDirty(true);
 
@@ -52,6 +55,22 @@ export function PageEditor({
   );
 
   const slugPreview = slugify(slug) || slugify(name) || "…";
+
+  async function handlePublish() {
+    if (saveState.dirty) {
+      toast.push("Guarda el borrador antes de publicarlo.", "error");
+      return;
+    }
+    setPublishing(true);
+    try {
+      await publishPageAction(page.id);
+      toast.push("Borrador publicado.");
+      window.location.reload();
+    } catch {
+      toast.push("No se pudo publicar el borrador.", "error");
+      setPublishing(false);
+    }
+  }
 
   async function handleRestore(v: DbPageVersion) {
     const when = new Date(v.createdAt).toLocaleString("es-ES");
@@ -85,9 +104,11 @@ export function PageEditor({
       <div className="admin-page-header">
         <h1>Editar página</h1>
         <p>
-          <a href={`/${slugPreview}`} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline">
-            Ver /{slugPreview} ↗
-          </a>
+          <a href={`/${slugPreview}`} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline">Ver publicado ↗</a>{" "}
+          <a href={`/preview/${encodeURIComponent(slugPreview)}?token=${encodeURIComponent(previewToken)}`} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">Previsualizar borrador ↗</a>
+          <span className="ml-2 rounded bg-amber-500/15 px-2 py-1 text-xs text-amber-300">{page.isPublished ? "Publicado" : "Solo borrador"}</span>
+          {page.publishedAt && <span className="ml-2 text-xs text-zinc-500">última publicación: {new Date(page.publishedAt).toLocaleString("es-ES")}</span>}
+          <button type="button" className="admin-btn admin-btn--sm ml-3" onClick={handlePublish} disabled={publishing || saveState.dirty}>{publishing ? "Publicando…" : "Publicar"}</button>
         </p>
       </div>
 

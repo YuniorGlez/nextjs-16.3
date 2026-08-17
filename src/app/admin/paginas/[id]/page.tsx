@@ -3,6 +3,7 @@ import { getMenu, getPageById, getSettings, listPageVersions } from "@/lib/data"
 import { PageEditor } from "@/components/admin/page-editor";
 import { resolveModules } from "@/lib/admin-modules";
 import { SECTION_DEFS } from "@/lib/sections";
+import { issuePreviewToken } from "@/lib/preview";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -34,6 +35,7 @@ export default async function PageEditPage({
   }
 
   if (!page) notFound();
+  const previewToken = issuePreviewToken(page.slug);
 
-  return <PageEditor page={page} menu={menu} versions={versions} hiddenKeys={hiddenKeys} />;
+  return <PageEditor page={page} menu={menu} versions={versions} hiddenKeys={hiddenKeys} previewToken={previewToken} />;
 }

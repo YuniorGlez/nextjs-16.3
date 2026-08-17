@@ -23,6 +23,7 @@ import {
   getPageById,
   getPageBySlug,
   prunePageVersions,
+  publishPage,
   registerPageRedirect,
   removeCategory,
   removeItem,
@@ -269,7 +270,7 @@ export async function createPage(
   if (!name || !slug) {
     return { ok: false, error: "Pon un nombre válido a la página." };
   }
-  if (await getPageBySlug(slug)) {
+  if (await getPageBySlug(slug, { draft: true })) {
     return { ok: false, error: `Ya existe una página con la URL /${slug}.` };
   }
   const id = await upsertPage({
@@ -297,7 +298,7 @@ export async function updatePage(input: {
   await guard();
   const slug = slugify(input.slug) || slugify(input.name);
   if (!slug) throw new Error("El slug no es válido.");
-  const other = await getPageBySlug(slug);
+  const other = await getPageBySlug(slug, { draft: true });
   if (other && other.id !== input.id) {
     throw new Error(`La URL /${slug} ya la usa otra página.`);
   }
@@ -358,7 +359,7 @@ export async function restorePageVersionAction(
   // Conflicto de slug: si otra página ya lo usa, se restaura todo menos el slug.
   let slug = snapshot.slug;
   let slugChanged = false;
-  const other = await getPageBySlug(slug);
+  const other = await getPageBySlug(slug, { draft: true });
   if (other && other.id !== pageId) {
     slug = current.slug;
     slugChanged = true;
@@ -387,6 +388,17 @@ export async function restorePageVersionAction(
   revalidatePath(`/${slug}`);
   if (slugChanged) revalidatePath(`/${current.slug}`);
   return { ok: true, slug, slugChanged };
+}
+
+export async function publishPageAction(id: number) {
+  await guard();
+  const page = await getPageById(id);
+  if (!page) throw new Error("La página no existe.");
+  await publishPage(id);
+  revalidatePath("/admin/paginas");
+  revalidatePath("/");
+  revalidatePath(`/${page.slug}`);
+  return { ok: true as const, publishedAt: new Date().toISOString() };
 }
 
 export async function togglePageVisibility(id: number, visible: boolean) {

@@ -65,50 +65,71 @@ export type DbPage = {
   layout: PageLayoutItem[];
   /** Última modificación del contenido (ISO 8601) o null si no se conoce. */
   updatedAt: string | null;
+  draftUpdatedAt: string | null;
+  publishedAt: string | null;
+  isPublished: boolean;
 };
 
 type PageRow = {
-  id: number;
-  slug: string;
-  name: string;
-  visible: boolean;
-  sort_order: number;
-  seo: unknown;
-  content: unknown;
-  layout: unknown;
-  updated_at: unknown;
+  id: number; slug: string; name: string; visible: boolean; sort_order: number;
+  seo: unknown; content: unknown; layout: unknown; updated_at: unknown;
+  draft_seo?: unknown; draft_content?: unknown; draft_layout?: unknown; draft_name?: string; draft_slug?: string;
+  draft_visible?: boolean; draft_updated_at?: unknown;
+  published_seo?: unknown; published_content?: unknown; published_layout?: unknown; published_name?: string;
+  published_slug?: string; published_visible?: boolean; published_at?: unknown;
 };
 
-function normalizePage(r: PageRow): DbPage {
+function normalizePage(r: PageRow, mode: "draft" | "published" = "draft"): DbPage {
+  const hasState = r.draft_seo !== undefined || r.published_seo !== undefined;
+  const prefix = mode === "draft" ? "draft" : "published";
+  const value = (key: string, legacy: unknown) => hasState ? (r as Record<string, unknown>)[`${prefix}_${key}`] ?? legacy : legacy;
   return {
-    id: r.id,
-    slug: r.slug,
-    name: r.name,
-    visible: !!r.visible,
-    sortOrder: r.sort_order,
-    seo: (r.seo ?? {}) as Record<string, string>,
-    content: (r.content ?? {}) as Record<string, unknown>,
-    layout: Array.isArray(r.layout) ? (r.layout as PageLayoutItem[]) : [],
+    id: r.id, slug: String(value("slug", r.slug)), name: String(value("name", r.name)),
+    visible: value("visible", r.visible) !== false, sortOrder: r.sort_order,
+    seo: (value("seo", r.seo) ?? {}) as Record<string, string>,
+    content: (value("content", r.content) ?? {}) as Record<string, unknown>,
+    layout: Array.isArray(value("layout", r.layout)) ? (value("layout", r.layout) as PageLayoutItem[]) : [],
     updatedAt: r.updated_at ? new Date(String(r.updated_at)).toISOString() : null,
+    draftUpdatedAt: r.draft_updated_at ? new Date(String(r.draft_updated_at)).toISOString() : null,
+    publishedAt: r.published_at ? new Date(String(r.published_at)).toISOString() : null,
+    isPublished: hasState ? r.published_visible !== false && r.published_at != null : !!r.visible,
   };
 }
 
-export async function getPages(): Promise<DbPage[]> {
-  const rows = (await sql`SELECT id, slug, name, visible, sort_order, seo, content, layout, updated_at
-    FROM pages ORDER BY sort_order, id`) as unknown as PageRow[];
-  return rows.map(normalizePage);
+const PAGE_SELECT = `id, slug, name, visible, sort_order, seo, content, layout, updated_at,
+    draft_seo, draft_content, draft_layout, draft_name, draft_slug, draft_visible, draft_updated_at,
+    published_seo, published_content, published_layout, published_name, published_slug, published_visible, published_at`;
+
+export async function getPages(options: { published?: boolean } = {}): Promise<DbPage[]> {
+  try {
+    const rows = (await sql`SELECT ${sql.unsafe(PAGE_SELECT)} FROM pages ORDER BY sort_order, id`) as unknown as PageRow[];
+    return rows.map((row) => normalizePage(row, options.published ? "published" : "draft"));
+  } catch {
+    const rows = (await sql`SELECT id, slug, name, visible, sort_order, seo, content, layout, updated_at FROM pages ORDER BY sort_order, id`) as unknown as PageRow[];
+    return rows.map((row) => normalizePage(row, "published"));
+  }
 }
 
 export async function getPageById(id: number): Promise<DbPage | null> {
-  const rows = (await sql`SELECT id, slug, name, visible, sort_order, seo, content, layout, updated_at
-    FROM pages WHERE id = ${id}`) as unknown as PageRow[];
-  return rows[0] ? normalizePage(rows[0]) : null;
+  try {
+    const rows = (await sql`SELECT ${sql.unsafe(PAGE_SELECT)} FROM pages WHERE id = ${id}`) as unknown as PageRow[];
+    return rows[0] ? normalizePage(rows[0]) : null;
+  } catch {
+    const rows = (await sql`SELECT id, slug, name, visible, sort_order, seo, content, layout, updated_at FROM pages WHERE id = ${id}`) as unknown as PageRow[];
+    return rows[0] ? normalizePage(rows[0], "published") : null;
+  }
 }
 
-export async function getPageBySlug(slug: string): Promise<DbPage | null> {
-  const rows = (await sql`SELECT id, slug, name, visible, sort_order, seo, content, layout, updated_at
-    FROM pages WHERE slug = ${slug}`) as unknown as PageRow[];
-  return rows[0] ? normalizePage(rows[0]) : null;
+export async function getPageBySlug(slug: string, options: { draft?: boolean } = {}): Promise<DbPage | null> {
+  try {
+    const rows = (await sql`SELECT ${sql.unsafe(PAGE_SELECT)} FROM pages
+      WHERE ${sql.unsafe(options.draft ? "draft_slug" : "published_slug")} = ${slug}
+         OR (${sql.unsafe(options.draft ? "draft_slug" : "published_slug")} IS NULL AND slug = ${slug})`) as unknown as PageRow[];
+    return rows[0] ? normalizePage(rows[0], options.draft ? "draft" : "published") : null;
+  } catch {
+    const rows = (await sql`SELECT id, slug, name, visible, sort_order, seo, content, layout, updated_at FROM pages WHERE slug = ${slug}`) as unknown as PageRow[];
+    return rows[0] ? normalizePage(rows[0], "published") : null;
+  }
 }
 
 /** Máximo updated_at de todas las páginas (última modificación del contenido). */
@@ -133,22 +154,36 @@ export async function upsertPage(input: {
   if (input.id) {
     await sql`UPDATE pages SET slug = ${slug}, name = ${input.name}, visible = ${input.visible},
       seo = ${JSON.stringify(input.seo)}::jsonb, content = ${JSON.stringify(input.content)}::jsonb,
-      layout = ${JSON.stringify(input.layout)}::jsonb, updated_at = now()
+      layout = ${JSON.stringify(input.layout)}::jsonb, updated_at = now(),
+      draft_slug = ${slug}, draft_name = ${input.name}, draft_visible = ${input.visible},
+      draft_seo = ${JSON.stringify(input.seo)}::jsonb, draft_content = ${JSON.stringify(input.content)}::jsonb,
+      draft_layout = ${JSON.stringify(input.layout)}::jsonb, draft_updated_at = now()
       WHERE id = ${input.id}`;
     return input.id;
   }
   const rows = (await sql`SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM pages`) as unknown as { n: number }[];
   const next = rows[0];
-  const inserted = (await sql`INSERT INTO pages (slug, name, visible, sort_order, seo, content, layout)
+  const inserted = (await sql`INSERT INTO pages (slug, name, visible, sort_order, seo, content, layout,
+      draft_slug, draft_name, draft_visible, draft_seo, draft_content, draft_layout, draft_updated_at,
+      published_slug, published_name, published_visible, published_seo, published_content, published_layout, published_at)
     VALUES (${slug}, ${input.name}, ${input.visible}, ${next.n},
-      ${JSON.stringify(input.seo)}::jsonb, ${JSON.stringify(input.content)}::jsonb,
-      ${JSON.stringify(input.layout)}::jsonb)
+      ${JSON.stringify(input.seo)}::jsonb, ${JSON.stringify(input.content)}::jsonb, ${JSON.stringify(input.layout)}::jsonb,
+      ${slug}, ${input.name}, ${input.visible}, ${JSON.stringify(input.seo)}::jsonb, ${JSON.stringify(input.content)}::jsonb,
+      ${JSON.stringify(input.layout)}::jsonb, now(), ${slug}, ${input.name}, ${input.visible},
+      ${JSON.stringify(input.seo)}::jsonb, ${JSON.stringify(input.content)}::jsonb, ${JSON.stringify(input.layout)}::jsonb, now())
     RETURNING id`) as unknown as { id: number }[];
   return inserted[0].id;
 }
 
+export async function publishPage(id: number): Promise<void> {
+  await sql`UPDATE pages SET published_slug = COALESCE(draft_slug, slug), published_name = COALESCE(draft_name, name),
+    published_visible = COALESCE(draft_visible, visible), published_seo = COALESCE(draft_seo, seo),
+    published_content = COALESCE(draft_content, content), published_layout = COALESCE(draft_layout, layout),
+    published_at = now() WHERE id = ${id}`;
+}
+
 export async function setPageVisibility(id: number, visible: boolean) {
-  await sql`UPDATE pages SET visible = ${visible}, updated_at = now() WHERE id = ${id}`;
+  await sql`UPDATE pages SET visible = ${visible}, draft_visible = ${visible}, draft_updated_at = now(), updated_at = now() WHERE id = ${id}`;
 }
 
 export async function removePage(id: number) {

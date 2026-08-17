@@ -66,6 +66,10 @@ export default async function PaginasPage() {
                     </td>
                     <td>
                       <TogglePageButton id={p.id} visible={p.visible} />
+                      <div className="mt-1 text-xs text-zinc-500">
+                        {p.isPublished ? "Publicado" : "Solo borrador"}
+                        {p.publishedAt ? ` · ${new Date(p.publishedAt).toLocaleDateString("es-ES")}` : ""}
+                      </div>
                     </td>
                     <td className="text-right">
                       <Link href={`/admin/paginas/${p.id}`} className="admin-btn admin-btn--sm admin-btn--secondary">

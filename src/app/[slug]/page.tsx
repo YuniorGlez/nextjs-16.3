@@ -65,7 +65,7 @@ export default async function SlugPage({
 
   try {
     const data = await import("@/lib/data");
-    [settings, menu, pages] = await Promise.all([data.getSettings(), data.getMenu(), data.getPages()]);
+    [settings, menu, pages] = await Promise.all([data.getSettings(), data.getMenu(), data.getPages({ published: true })]);
     page = await data.getPageBySlug(slug);
   } catch {
     // BD no disponible
