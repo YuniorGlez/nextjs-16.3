@@ -15,7 +15,6 @@ import {
 } from "@/components/landing-sections";
 import type { MenuCategory } from "@/lib/data";
 
-export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function generateMetadata({
@@ -25,8 +24,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   try {
-    const { getPageBySlug } = await import("@/lib/data");
-    const page = await getPageBySlug(slug);
+    const { getPublicPageBySlug } = await import("@/lib/data");
+    const page = await getPublicPageBySlug(slug);
     if (!page || !page.visible) return { title: "Página no encontrada" };
     const title = page.seo.title || page.name;
     const site = await resolveSiteConfig();
@@ -65,8 +64,8 @@ export default async function SlugPage({
 
   try {
     const data = await import("@/lib/data");
-    [settings, menu, pages] = await Promise.all([data.getSettings(), data.getMenu(), data.getPages({ published: true })]);
-    page = await data.getPageBySlug(slug);
+    [settings, menu, pages] = await Promise.all([data.getPublicSettings(), data.getPublicMenu(), data.getPublicPages()]);
+    page = await data.getPublicPageBySlug(slug);
   } catch {
     // BD no disponible
   }

@@ -12,8 +12,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [];
 
   try {
-    const { getPages, getLatestPageUpdatedAt } = await import("@/lib/data");
-    const [pages, latest] = await Promise.all([getPages(), getLatestPageUpdatedAt()]);
+    const { getPublicPages, getLatestPageUpdatedAt } = await import("@/lib/data");
+    const [pages, latest] = await Promise.all([getPublicPages(), getLatestPageUpdatedAt()]);
     if (latest) homeLastModified = new Date(latest);
 
     for (const p of pages.filter((x) => x.visible)) {

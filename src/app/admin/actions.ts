@@ -45,6 +45,7 @@ import { PAGE_DEFAULT_LAYOUT } from "@/lib/sections";
 import { ADMIN_MODULES } from "@/lib/admin-modules";
 import { PERMISSIONS, isRole, sanitizePermissions, type Permission, type AdminRole } from "@/lib/rbac";
 import { recordCurrentAdminAudit } from "@/lib/audit";
+import { invalidatePublicMenu, invalidatePublicPages, invalidatePublicRedirects, invalidatePublicSettings } from "@/lib/cache";
 
 async function guard(permission: Permission = PERMISSIONS.contentWrite) {
   if (!(await isAdmin())) {
@@ -207,6 +208,7 @@ export async function saveMenu(
 ) {
   await guard(PERMISSIONS.menu);
   await saveMenuDb(cats);
+  invalidatePublicMenu();
   await recordCurrentAdminAudit({ action: "menu.save", entityType: "menu", metadata: { categories: cats.length } });
   revalidatePath("/admin");
   revalidatePath("/");
@@ -221,6 +223,7 @@ export async function saveCategory(data: FormData) {
     name: String(data.get("name") ?? "").trim(),
     emoji: String(data.get("emoji") ?? "").trim(),
   });
+  invalidatePublicMenu();
   await recordCurrentAdminAudit({ action: id ? "category.update" : "category.create", entityType: "category", entityId: id, metadata: { name: String(data.get("name") ?? "").trim() } });
   revalidatePath("/admin");
   revalidatePath("/");
@@ -229,6 +232,7 @@ export async function saveCategory(data: FormData) {
 export async function deleteCategoryAction(id: number) {
   await guard(PERMISSIONS.menu);
   await removeCategory(id);
+  invalidatePublicMenu();
   await recordCurrentAdminAudit({ action: "category.delete", entityType: "category", entityId: id });
   revalidatePath("/admin");
   revalidatePath("/");
@@ -245,6 +249,7 @@ export async function saveItem(data: FormData) {
     description: String(data.get("description") ?? "").trim(),
     price: String(data.get("price") ?? "").trim(),
   });
+  invalidatePublicMenu();
   await recordCurrentAdminAudit({ action: id ? "item.update" : "item.create", entityType: "item", entityId: id, metadata: { name: String(data.get("name") ?? "").trim() } });
   revalidatePath("/admin");
   revalidatePath("/");
@@ -253,6 +258,7 @@ export async function saveItem(data: FormData) {
 export async function deleteItem(id: number) {
   await guard(PERMISSIONS.menu);
   await removeItem(id);
+  invalidatePublicMenu();
   await recordCurrentAdminAudit({ action: "item.delete", entityType: "item", entityId: id });
   revalidatePath("/admin");
   revalidatePath("/");
@@ -268,6 +274,7 @@ export async function saveSettings(partial: Record<string, unknown>) {
   if (keys.length === 0) await requirePermission(PERMISSIONS.contentWrite);
   await Promise.all(keys.map((key) => requirePermission(settingPermissions[key] ?? PERMISSIONS.contentWrite)));
   await updateSettings(partial);
+  invalidatePublicSettings();
   await recordCurrentAdminAudit({ action: "settings.update", entityType: "settings", metadata: { keys } });
   revalidatePath("/admin");
   revalidatePath("/");
@@ -286,6 +293,7 @@ export async function saveModules(flags: Record<string, boolean>) {
     if (m.required) clean[m.id] = true;
   }
   await updateSettings({ modules: clean });
+  invalidatePublicSettings();
   await recordCurrentAdminAudit({ action: "modules.update", entityType: "settings", metadata: { modules: clean } });
   revalidatePath("/admin");
   revalidatePath("/");
@@ -316,6 +324,7 @@ export async function createPage(
     content: {},
     layout: PAGE_DEFAULT_LAYOUT,
   });
+  invalidatePublicPages(slug);
   await recordCurrentAdminAudit({ action: "page.create", entityType: "page", entityId: id, metadata: { slug, name } });
   revalidatePath("/admin/paginas");
   revalidatePath("/");
@@ -353,6 +362,7 @@ export async function updatePage(input: {
     layout: input.layout,
     content: input.content,
   });
+  invalidatePublicPages(input.slug, slug, current?.slug ?? "");
   await recordCurrentAdminAudit({ action: "page.update", entityType: "page", entityId: input.id, metadata: { slug, visible: input.visible } });
   // Si cambió el slug, registrar redirección 301 del slug antiguo al nuevo
   // (el proxy la emite en el edge). Un fallo aquí no debe romper el guardado.
@@ -364,6 +374,7 @@ export async function updatePage(input: {
     }
   }
   await prunePageVersions(input.id, 20);
+  if (current && current.slug !== slug) invalidatePublicRedirects();
   revalidatePath("/admin/paginas");
   revalidatePath("/");
   revalidatePath(`/${slug}`);
@@ -410,6 +421,7 @@ export async function restorePageVersionAction(
     layout: snapshot.layout,
     content: snapshot.content,
   });
+  invalidatePublicPages(current.slug, slug);
   await recordCurrentAdminAudit({ action: "page.restore", entityType: "page", entityId: pageId, metadata: { versionId } });
   // Si restaurar cambió el slug (volver a un slug anterior), registrar la
   // redirección 301 desde el slug actual para no romper enlaces existentes.
@@ -421,6 +433,7 @@ export async function restorePageVersionAction(
     }
   }
   await prunePageVersions(pageId, 20);
+  if (slug !== current.slug) invalidatePublicRedirects();
   revalidatePath("/admin/paginas");
   revalidatePath("/");
   revalidatePath(`/${slug}`);
@@ -433,6 +446,7 @@ export async function publishPageAction(id: number) {
   const page = await getPageById(id);
   if (!page) throw new Error("La página no existe.");
   await publishPage(id);
+  invalidatePublicPages(page.slug);
   await recordCurrentAdminAudit({ action: "page.publish", entityType: "page", entityId: id });
   revalidatePath("/admin/paginas");
   revalidatePath("/");
@@ -443,6 +457,8 @@ export async function publishPageAction(id: number) {
 export async function togglePageVisibility(id: number, visible: boolean) {
   await guard();
   await setPageVisibility(id, visible);
+  const page = await getPageById(id);
+  invalidatePublicPages(page?.slug ?? "");
   await recordCurrentAdminAudit({ action: "page.visibility", entityType: "page", entityId: id, metadata: { visible } });
   revalidatePath("/admin/paginas");
   revalidatePath("/");
@@ -450,7 +466,9 @@ export async function togglePageVisibility(id: number, visible: boolean) {
 
 export async function deletePageAction(id: number) {
   await guard();
+  const page = await getPageById(id);
   await removePage(id);
+  invalidatePublicPages(page?.slug ?? "");
   await recordCurrentAdminAudit({ action: "page.delete", entityType: "page", entityId: id });
   revalidatePath("/admin/paginas");
   revalidatePath("/");

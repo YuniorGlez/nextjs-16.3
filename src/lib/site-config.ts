@@ -36,8 +36,8 @@ export async function resolveSiteConfig(databaseSettings?: unknown): Promise<Eff
   let database = databaseSettings;
   if (database === undefined) {
     try {
-      const { getSettings } = await import("@/lib/data");
-      database = await getSettings();
+      const { getPublicSettings } = await import("@/lib/data");
+      database = await getPublicSettings();
     } catch {
       database = undefined;
     }

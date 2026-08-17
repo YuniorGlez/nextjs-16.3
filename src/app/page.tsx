@@ -36,7 +36,7 @@ export default async function Home() {
   let pages: { slug: string; name: string; visible: boolean }[] = [];
   try {
     const data = await import("@/lib/data");
-    [menu, settings, pages] = await Promise.all([data.getMenu(), data.getSettings(), data.getPages()]);
+    [menu, settings, pages] = await Promise.all([data.getPublicMenu(), data.getPublicSettings(), data.getPublicPages()]);
   } catch {
     // BD no disponible — contenido por defecto
   }

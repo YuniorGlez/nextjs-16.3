@@ -1,6 +1,8 @@
 import { sql } from "@/lib/db";
 import { computeRedirectMoves, type RedirectMoves } from "@/lib/redirects";
 import { slugify } from "@/lib/slug";
+import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS, pageCacheTag } from "@/lib/cache";
+import { unstable_cache } from "next/cache";
 
 export type DbCategory = {
   id: number;
@@ -48,6 +50,12 @@ export async function getMenu(): Promise<MenuCategory[]> {
       })),
   }));
 }
+
+/** Lectura pública cacheada. Las lecturas del admin siguen usando getMenu(). */
+export const getPublicMenu = unstable_cache(getMenu, ["public-menu-query"], {
+  tags: [CACHE_TAGS.menu],
+  revalidate: CACHE_REVALIDATE_SECONDS,
+});
 
 export type Settings = Record<string, unknown>;
 
@@ -110,6 +118,13 @@ export async function getPages(options: { published?: boolean } = {}): Promise<D
   }
 }
 
+/** Solo estado publicado: nunca reutilizar esta función para preview/admin. */
+export const getPublicPages = unstable_cache(
+  async () => getPages({ published: true }),
+  ["public-pages-query"],
+  { tags: [CACHE_TAGS.pages], revalidate: CACHE_REVALIDATE_SECONDS },
+);
+
 export async function getPageById(id: number): Promise<DbPage | null> {
   try {
     const rows = (await sql`SELECT ${sql.unsafe(PAGE_SELECT)} FROM pages WHERE id = ${id}`) as unknown as PageRow[];
@@ -130,6 +145,15 @@ export async function getPageBySlug(slug: string, options: { draft?: boolean } =
     const rows = (await sql`SELECT id, slug, name, visible, sort_order, seo, content, layout, updated_at FROM pages WHERE slug = ${slug}`) as unknown as PageRow[];
     return rows[0] ? normalizePage(rows[0], "published") : null;
   }
+}
+
+/** Página publicada por slug, con una entrada/tag aislados por slug. */
+export async function getPublicPageBySlug(slug: string): Promise<DbPage | null> {
+  return unstable_cache(
+    async () => getPageBySlug(slug),
+    ["public-page-query", slug],
+    { tags: [CACHE_TAGS.pages, pageCacheTag(slug)], revalidate: CACHE_REVALIDATE_SECONDS },
+  )();
 }
 
 /** Máximo updated_at de todas las páginas (última modificación del contenido). */
@@ -203,6 +227,12 @@ export async function getPageRedirects(): Promise<DbRedirect[]> {
   }[];
   return rows.map((r) => ({ from: r.from_slug, to: r.to_slug }));
 }
+
+/** Cache para Server Components; el proxy usa una consulta edge separada. */
+export const getPublicPageRedirects = unstable_cache(getPageRedirects, ["public-redirects-query"], {
+  tags: [CACHE_TAGS.redirects],
+  revalidate: CACHE_REVALIDATE_SECONDS,
+});
 
 export async function applyRedirectMoves(moves: RedirectMoves) {
   for (const u of moves.updates) {
@@ -322,6 +352,12 @@ export async function getSettings(): Promise<Settings> {
   for (const r of rows) out[r.key] = r.value;
   return out;
 }
+
+/** Configuración efectiva pública; no expone una lectura cacheada al admin. */
+export const getPublicSettings = unstable_cache(getSettings, ["public-settings-query"], {
+  tags: [CACHE_TAGS.settings],
+  revalidate: CACHE_REVALIDATE_SECONDS,
+});
 
 // ---------- Mutaciones (solo desde /admin) ----------
 export async function upsertCategory(input: {

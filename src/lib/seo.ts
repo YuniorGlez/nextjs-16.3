@@ -47,8 +47,8 @@ export function parseKeywords(s: string): string[] {
  */
 export async function getSeoSettings(): Promise<SeoSettings> {
   try {
-    const { getSettings } = await import("@/lib/data");
-    const settings = await getSettings();
+    const { getPublicSettings } = await import("@/lib/data");
+    const settings = await getPublicSettings();
     return normalizeSeoSettings(settings.seo);
   } catch {
     return { ...EMPTY };
