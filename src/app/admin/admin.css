@@ -746,6 +746,11 @@
   border-radius: var(--admin-radius-lg);
   overflow: hidden;
 }
+/* Mensaje sin leer en la bandeja: borde acentuado + leve resplandor */
+.admin-message-card--unread {
+  border-color: color-mix(in srgb, var(--admin-amber) 45%, var(--admin-border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--admin-amber) 25%, transparent);
+}
 .admin-panel-card-header {
   display: flex;
   align-items: center;

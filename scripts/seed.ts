@@ -49,6 +49,15 @@ await sql`CREATE TABLE IF NOT EXISTS page_redirects (
   to_slug TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 )`;
+// Bandeja de mensajes del formulario de contacto (sin FK: sobreviven a todo).
+await sql`CREATE TABLE IF NOT EXISTS contact_messages (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  message TEXT NOT NULL,
+  read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+)`;
 
 const settings: Record<string, unknown> = {
   contacto: {
@@ -58,6 +67,12 @@ const settings: Record<string, unknown> = {
     email: "",
     direccion: "",
     localidad: "",
+  },
+  mensajes: {
+    // Avisos por email del formulario de contacto. Vacíos = usar el email de
+    // contacto y las variables de entorno RESEND_TO / RESEND_FROM.
+    to: "",
+    from: "",
   },
   hero: {
     titulo: "Tu etiqueta",

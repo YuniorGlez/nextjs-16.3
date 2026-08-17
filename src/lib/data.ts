@@ -364,3 +364,60 @@ export async function saveMenu(
     }
   }
 }
+
+// ---------- Bandeja de mensajes (formulario de contacto) ----------
+export type DbContactMessage = {
+  id: number;
+  name: string;
+  email: string;
+  message: string;
+  read: boolean;
+  /** Fecha de recepción (ISO 8601). */
+  createdAt: string;
+};
+
+type ContactMessageRow = {
+  id: number;
+  name: string;
+  email: string;
+  message: string;
+  read: unknown;
+  created_at: unknown;
+};
+
+function normalizeContactMessage(r: ContactMessageRow): DbContactMessage {
+  return {
+    id: r.id,
+    name: r.name,
+    email: r.email,
+    message: r.message,
+    read: !!r.read,
+    createdAt: new Date(String(r.created_at)).toISOString(),
+  };
+}
+
+export async function createContactMessage(input: {
+  name: string;
+  email: string;
+  message: string;
+}): Promise<number> {
+  const rows = (await sql`INSERT INTO contact_messages (name, email, message)
+    VALUES (${input.name}, ${input.email}, ${input.message})
+    RETURNING id`) as unknown as { id: number }[];
+  return rows[0].id;
+}
+
+/** Lista los mensajes con los no leídos primero y los más recientes arriba. */
+export async function listContactMessages(limit = 100): Promise<DbContactMessage[]> {
+  const rows = (await sql`SELECT id, name, email, message, read, created_at
+    FROM contact_messages ORDER BY read ASC, created_at DESC, id DESC LIMIT ${limit}`) as unknown as ContactMessageRow[];
+  return rows.map(normalizeContactMessage);
+}
+
+export async function setMessageRead(id: number, read: boolean) {
+  await sql`UPDATE contact_messages SET read = ${read} WHERE id = ${id}`;
+}
+
+export async function deleteContactMessage(id: number) {
+  await sql`DELETE FROM contact_messages WHERE id = ${id}`;
+}

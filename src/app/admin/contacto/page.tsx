@@ -1,5 +1,5 @@
 import { getSettings } from "@/lib/data";
-import { ContactoEditor } from "@/components/admin/settings-editors";
+import { ContactoEditor } from "@/components/admin/contacto-editor";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -12,5 +12,6 @@ export default async function ContactoPage() {
     // BD no disponible
   }
   const contacto = (settings.contacto ?? {}) as Record<string, string>;
-  return <ContactoEditor contacto={contacto} />;
+  const mensajes = (settings.mensajes ?? {}) as Record<string, string>;
+  return <ContactoEditor contacto={contacto} mensajes={mensajes} />;
 }

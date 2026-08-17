@@ -11,6 +11,8 @@ type S = Record<string, unknown>;
 const inputCls =
   "w-full bg-zinc-950 border border-white/15 rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500";
 
+export { inputCls };
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="admin-field">
@@ -19,6 +21,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   );
 }
+
+export { Field };
 
 function useSave(draft: S, key: string, getValue: () => S) {
   const saveState = useAdminSave();
@@ -41,45 +45,6 @@ function useSave(draft: S, key: string, getValue: () => S) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft, key]);
   return saveState;
-}
-
-/* ---------------- Contacto ---------------- */
-const CONTACT_FIELDS: [string, string][] = [
-  ["telefono", "Teléfono (se muestra en la web)"],
-  ["telefonoUrl", "Enlace tel: (p.ej. tel:+34922430406)"],
-  ["whatsapp", "Enlace WhatsApp (wa.me/…)"],
-  ["direccion", "Dirección"],
-  ["localidad", "Localidad"],
-];
-
-export function ContactoEditor({ contacto }: { contacto: Record<string, string> }) {
-  const [draft, setDraft] = useState<S>({ ...contacto });
-  const saveState = useSave(draft, "contacto", () => draft);
-
-  function set(k: string, v: string) {
-    setDraft((d) => ({ ...d, [k]: v }));
-    saveState.setDirty(true);
-  }
-
-  return (
-    <div>
-      <div className="admin-page-header">
-        <h1>Datos de contacto</h1>
-        <p>Estos datos aparecen en la sección de contacto de la web. Pulsa «Guardar» para aplicarlos.</p>
-      </div>
-      <section className="admin-section">
-        <div className="admin-panel-card p-5">
-          <div className="admin-form-grid">
-            {CONTACT_FIELDS.map(([k, label]) => (
-              <Field key={k} label={label}>
-                <input className={inputCls} value={String(draft[k] ?? "")} onChange={(e) => set(k, e.target.value)} />
-              </Field>
-            ))}
-          </div>
-        </div>
-      </section>
-    </div>
-  );
 }
 
 /* ---------------- Contenido (textos + héroe) ---------------- */

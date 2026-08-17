@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth";
 import {
   createPageVersion,
+  deleteContactMessage,
   getPageById,
   getPageBySlug,
   prunePageVersions,
@@ -19,6 +20,7 @@ import {
   removePage,
   restorePageVersion,
   saveMenu as saveMenuDb,
+  setMessageRead,
   setPageVisibility,
   updateSettings,
   upsertCategory,
@@ -261,4 +263,17 @@ export async function deletePageAction(id: number) {
   revalidatePath("/admin/paginas");
   revalidatePath("/");
   redirect("/admin/paginas");
+}
+
+// ---------- Bandeja de mensajes ----------
+export async function setMessageReadAction(id: number, read: boolean) {
+  await guard();
+  await setMessageRead(id, read);
+  revalidatePath("/admin/mensajes");
+}
+
+export async function deleteMessageAction(id: number) {
+  await guard();
+  await deleteContactMessage(id);
+  revalidatePath("/admin/mensajes");
 }
