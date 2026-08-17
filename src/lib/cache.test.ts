@@ -7,6 +7,7 @@ import {
   invalidatePublicPages,
   isCacheablePublicQuery,
   pageCacheTag,
+  selectPublicSettings,
 } from "@/lib/cache";
 
 vi.mock("next/cache", () => ({ revalidateTag: vi.fn() }));
@@ -21,6 +22,10 @@ describe("cache pública", () => {
     expect(isCacheablePublicQuery({ published: true })).toBe(true);
     expect(isCacheablePublicQuery({ published: false })).toBe(false);
     expect(isCacheablePublicQuery({ published: true, draft: true })).toBe(false);
+  });
+
+  it("excluye secretos y configuración de correo de settings públicos", () => {
+    expect(selectPublicSettings({ ai: { openrouterApiKey: "secret" }, mensajes: { to: "private" }, hero: { h1: "Hola" } })).toEqual({ hero: { h1: "Hola" } });
   });
 
   it("invalida páginas y slugs sin duplicados usando SWR de Next 16", () => {

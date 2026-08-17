@@ -1,7 +1,7 @@
 import { sql } from "@/lib/db";
 import { computeRedirectMoves, type RedirectMoves } from "@/lib/redirects";
 import { slugify } from "@/lib/slug";
-import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS, pageCacheTag } from "@/lib/cache";
+import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS, pageCacheTag, selectPublicSettings } from "@/lib/cache";
 import { unstable_cache } from "next/cache";
 
 export type DbCategory = {
@@ -353,11 +353,12 @@ export async function getSettings(): Promise<Settings> {
   return out;
 }
 
-/** Configuración efectiva pública; no expone una lectura cacheada al admin. */
-export const getPublicSettings = unstable_cache(getSettings, ["public-settings-query"], {
-  tags: [CACHE_TAGS.settings],
-  revalidate: CACHE_REVALIDATE_SECONDS,
-});
+/** Configuración efectiva pública; no expone secretos ni settings de correo. */
+export const getPublicSettings = unstable_cache(
+  async () => selectPublicSettings(await getSettings()),
+  ["public-settings-query"],
+  { tags: [CACHE_TAGS.settings], revalidate: CACHE_REVALIDATE_SECONDS },
+);
 
 // ---------- Mutaciones (solo desde /admin) ----------
 export async function upsertCategory(input: {

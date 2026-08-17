@@ -44,3 +44,9 @@ export function invalidatePublicContent(options: { settings?: boolean; menu?: bo
 export function isCacheablePublicQuery(options: { published?: boolean; draft?: boolean } = {}): boolean {
   return options.published === true && options.draft !== true;
 }
+
+/** Elimina settings reservados antes de que entren en la cache pública/RSC. */
+export function selectPublicSettings(settings: Record<string, unknown>): Record<string, unknown> {
+  const { ai: _ai, mensajes: _mensajes, ...publicSettings } = settings;
+  return publicSettings;
+}
