@@ -16,10 +16,12 @@ export function PageEditor({
   page,
   menu,
   versions,
+  hiddenKeys,
 }: {
   page: DbPage;
   menu: MenuCategory[];
   versions: DbPageVersion[];
+  hiddenKeys?: string[];
 }) {
   const saveState = useAdminSave();
   const toast = useToast();
@@ -190,6 +192,7 @@ export function PageEditor({
         initialContent={page.content}
         menu={menu}
         save={save}
+        hiddenKeys={hiddenKeys}
         title="Secciones de la página"
         description="Añade, reordena o edita las secciones de esta página. Los cambios se aplican al guardar."
       />

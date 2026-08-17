@@ -16,6 +16,7 @@ export type AdminRow = {
   passwordHash: string;
   mustChangePassword: boolean;
   tokenVersion: number;
+  isSuperadmin: boolean;
   lastLoginAt: string | null;
   createdAt: string;
 };
@@ -26,6 +27,7 @@ type AdminDbRow = {
   password_hash: string;
   must_change_password: boolean;
   token_version: number;
+  is_superadmin: unknown;
   last_login_at: unknown;
   created_at: unknown;
 };
@@ -37,6 +39,7 @@ function normalizeAdmin(r: AdminDbRow): AdminRow {
     passwordHash: r.password_hash,
     mustChangePassword: !!r.must_change_password,
     tokenVersion: r.token_version,
+    isSuperadmin: !!r.is_superadmin,
     lastLoginAt: r.last_login_at ? new Date(String(r.last_login_at)).toISOString() : null,
     createdAt: new Date(String(r.created_at)).toISOString(),
   };
@@ -44,7 +47,7 @@ function normalizeAdmin(r: AdminDbRow): AdminRow {
 
 // Lista de columnas constante (confiable): se interpola como fragmento SQL.
 const ADMIN_COLS =
-  "id, email, password_hash, must_change_password, token_version, last_login_at, created_at";
+  "id, email, password_hash, must_change_password, token_version, is_superadmin, last_login_at, created_at";
 
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -143,8 +146,8 @@ export async function authenticateAdmin(
     const envPassword = process.env.ADMIN_PASSWORD ?? "Temporal1234!";
     if (password !== envPassword) return null;
     const rows = (await sql.query(
-      `INSERT INTO admins (email, password_hash, must_change_password, token_version, last_login_at)
-       SELECT $1, $2, FALSE, 1, now()
+      `INSERT INTO admins (email, password_hash, must_change_password, token_version, last_login_at, is_superadmin)
+       SELECT $1, $2, FALSE, 1, now(), TRUE
        WHERE NOT EXISTS (SELECT 1 FROM admins)
        RETURNING ${ADMIN_COLS}`,
       [email, hashPassword(password)],

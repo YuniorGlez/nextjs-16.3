@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { siteConfig } from "@/lib/site";
+import { ADMIN_NAV, type AdminNavItem } from "@/lib/admin-modules";
 import {
   createContext,
   useCallback,
@@ -100,43 +101,27 @@ function Icon({ d, size = 18, w = 2 }: { d: string; size?: number; w?: number })
     </svg>
   );
 }
-const DASH = "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z";
-const MENU = "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01";
-const CONTACT = "M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.8a2 2 0 0 1-.4 2.1L8 10a16 16 0 0 0 6 6l1.4-1.4a2 2 0 0 1 2.1-.4c.8.3 1.9.6 2.8.7a2 2 0 0 1 1.7 2Z";
-const SUN = "M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10ZM12 21v-2M12 5V3M21 12h-2M5 12H3M18 6l-2 2M8 8 6 6M18 18l-2-2M8 16l-2 2";
-const LAYOUT = "M3 3h18v6H3zM3 11h9v8H3zM14 11h7v8h-7z";
-const PALETTE = "M12 3a9 9 0 1 0 .1 18c1.6 0 2.5-1.3 2.5-2.6 0-1-.5-1.9-1.4-2.7-.9-.8-1.3-1.7-1.3-2.5 0-1.2.9-2 2.3-2h1.4c2.2 0 3.4-1.4 3.4-3.6C19.9 5 16.4 3 12 3Z";
-const PUB = "M14 3v5a2 2 0 0 0 2 2h5M14 3h-7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z M14 3v6h6";
-const SIGNOUT = "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9";
-const LEFT = "M15 6l-6 6 6 6";
-const RIGHT = "M9 6l6 6-6 6";
-const SEARCH = "M21 21l-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z";
-const FILE = "M14 3v5a2 2 0 0 0 2 2h5M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z";
-const SCALE = "M12 3v18M5 7h14M6 7l-3 6a3 3 0 0 0 6 0L6 7ZM18 7l-3 6a3 3 0 0 0 6 0l-3-6ZM4 21h16";
-const IMAGE = "M3 3h18v18H3z M21 15l-3.1-3.1a2 2 0 0 0-2.8 0L6 21 M9 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z";
-const LOCK = "M12 3a4 4 0 0 0-4 4v3H7a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a4 4 0 0 0-4-4Zm-2 7V7a2 2 0 1 1 4 0v3h-4Z";
 
 /* ================= Nav ================= */
-const NAV = [
-  { href: "/admin", label: "Resumen", icon: DASH },
-  { href: "/admin/landing", label: "Landing (builder)", icon: LAYOUT },
-  { href: "/admin/paginas", label: "Páginas", icon: FILE },
-  { href: "/admin/menu", label: "Menú", icon: MENU },
-  { href: "/admin/carta", label: "Carta y precios", icon: MENU },
-  { href: "/admin/contacto", label: "Contacto", icon: CONTACT },
-  { href: "/admin/mensajes", label: "Mensajes", icon: CONTACT },
-  { href: "/admin/contenido", label: "Textos y héroe", icon: SUN },
-  { href: "/admin/seo", label: "SEO", icon: SEARCH },
-  { href: "/admin/imagenes", label: "Imágenes y IA", icon: IMAGE },
-  { href: "/admin/legal", label: "Datos legales", icon: SCALE },
-  { href: "/admin/estilo", label: "Estilo y marca", icon: PALETTE },
-  { href: "/admin/seguridad", label: "Seguridad", icon: LOCK },
-].map((n) => ({ ...n }));
+// Etiquetas de migas de pan por segmento de ruta (derivadas del registro).
+const SEGMENT_LABELS: Record<string, string> = {};
+for (const n of ADMIN_NAV) {
+  const seg = n.href.split("/").at(-1);
+  if (seg) SEGMENT_LABELS[seg] = n.label;
+}
 
 const SIDEBAR_KEY = `${siteConfig.name}:admin:sidebar`;
 const INIT_SCRIPT = `var p=document.currentScript.parentElement,s="expanded";try{if(localStorage.getItem(${JSON.stringify(SIDEBAR_KEY)})==="rail")s="rail"}catch(e){}p.dataset.adminSidebar=s`;
 
-function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+function Sidebar({
+  open,
+  onClose,
+  nav,
+}: {
+  open: boolean;
+  onClose: () => void;
+  nav: AdminNavItem[];
+}) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const ref = useRef<HTMLElement>(null);
@@ -159,8 +144,8 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
     } catch {}
   };
 
-  const active = (href: string, exact?: boolean) =>
-    exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
+  const active = (href: string) =>
+    href === "/admin" ? pathname === "/admin" : pathname === href || pathname.startsWith(href + "/");
 
   return (
     <aside className={`admin-sidebar${open ? " admin-sidebar--open" : ""}`} ref={ref}>
@@ -174,7 +159,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
         </Link>
       </div>
       <nav className="admin-nav">
-        {NAV.map((n) => (
+        {nav.map((n) => (
           <Link key={n.href} href={n.href} data-tooltip={n.label} onClick={onClose}
             className={`admin-nav-item ${active(n.href) ? "admin-nav-item--active" : ""}`}
             aria-current={active(n.href) ? "page" : undefined}>
@@ -185,12 +170,12 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
       </nav>
       <div className="admin-sidebar-footer">
         <a href="/" className="admin-nav-item" target="_blank" rel="noopener noreferrer" data-tooltip="Ver la web" onClick={onClose}>
-          <span className="admin-nav-icon"><Icon d={PUB} /></span>
+          <span className="admin-nav-icon"><Icon d={"M14 3v5a2 2 0 0 0 2 2h5M14 3h-7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z M14 3v6h6"} /></span>
           <span className="admin-nav-label">Ver la web</span>
         </a>
         <button type="button" className="admin-sidebar-collapse" onClick={toggle}
           aria-label={collapsed ? "Expandir" : "Colapsar"} data-tooltip={collapsed ? "Expandir" : "Colapsar"}>
-          <Icon d={collapsed ? RIGHT : LEFT} size={15} />
+          <Icon d={collapsed ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"} size={15} />
         </button>
       </div>
     </aside>
@@ -198,21 +183,6 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
 }
 
 /* ================= Topbar ================= */
-const SEG_LABELS: Record<string, string> = {
-  carta: "Carta y precios",
-  contacto: "Contacto",
-  contenido: "Textos y héroe",
-  landing: "Landing (builder)",
-  legal: "Datos legales",
-  menu: "Menú",
-  mensajes: "Mensajes",
-  paginas: "Páginas",
-  seo: "SEO",
-  imagenes: "Imágenes y IA",
-  estilo: "Estilo y marca",
-  seguridad: "Seguridad",
-};
-
 function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   const pathname = usePathname();
   const { dirty, saving, submit } = useAdminSave();
@@ -235,7 +205,7 @@ function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
     <header className="admin-topbar">
       <button type="button" className="admin-topbar-menu-btn" onClick={onMenuClick}
         aria-label="Abrir menú">
-        <Icon d={MENU} size={20} />
+        <Icon d={"M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"} size={20} />
       </button>
       <nav className="admin-topbar-crumb" aria-label="Ruta">
         {segments.length === 0 ? (
@@ -246,7 +216,7 @@ function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
             {segments.map((s) => (
               <span key={s} className="admin-topbar-crumb-segment">
                 <span className="admin-topbar-crumb-sep" aria-hidden>{" / "}</span>
-                <b aria-current="page">{SEG_LABELS[s] ?? s[0].toUpperCase() + s.slice(1)}</b>
+                <b aria-current="page">{SEGMENT_LABELS[s] ?? s[0].toUpperCase() + s.slice(1)}</b>
               </span>
             ))}
           </>
@@ -268,15 +238,29 @@ function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
       <div className="admin-topbar-avatar" aria-hidden />
       <button type="button" className="admin-topbar-icon-btn" onClick={logout} disabled={log}
         aria-label="Cerrar sesión" title="Cerrar sesión">
-        <Icon d={SIGNOUT} size={17} />
+        <Icon d={"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"} size={17} />
       </button>
     </header>
   );
 }
 
 /* ================= Shell ================= */
-export function AdminShell({ children }: { children: ReactNode }) {
+export function AdminShell({
+  children,
+  nav,
+  disabledModules,
+  isSuperadmin,
+}: {
+  children: ReactNode;
+  nav: AdminNavItem[];
+  disabledModules: { href: string; label: string }[];
+  isSuperadmin: boolean;
+}) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+  const blocked = disabledModules.find(
+    (m) => pathname === m.href || pathname.startsWith(m.href + "/"),
+  );
   return (
     <ToastProvider>
       <SaveProvider>
@@ -289,10 +273,21 @@ export function AdminShell({ children }: { children: ReactNode }) {
             aria-label="Cerrar menú"
             tabIndex={mobileOpen ? 0 : -1}
           />
-          <Sidebar open={mobileOpen} onClose={() => setMobileOpen(false)} />
+          <Sidebar open={mobileOpen} onClose={() => setMobileOpen(false)} nav={nav} />
           <div className="admin-main">
             <Topbar onMenuClick={() => setMobileOpen(true)} />
-            <main className="admin-content">{children}</main>
+            <main className="admin-content">
+              {blocked ? (
+                <div className="admin-panel-card p-6">
+                  <div className="admin-empty">
+                    El módulo «{blocked.label}» está desactivado en este proyecto.
+                    {isSuperadmin ? " Puedes activarlo desde «Módulos»." : ""}
+                  </div>
+                </div>
+              ) : (
+                children
+              )}
+            </main>
           </div>
         </div>
       </SaveProvider>

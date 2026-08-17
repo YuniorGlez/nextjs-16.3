@@ -39,6 +39,7 @@ import {
 } from "@/lib/data";
 import { slugify } from "@/lib/slug";
 import { PAGE_DEFAULT_LAYOUT } from "@/lib/sections";
+import { ADMIN_MODULES } from "@/lib/admin-modules";
 
 async function guard() {
   if (!(await isAdmin())) {
@@ -230,6 +231,26 @@ export async function deleteItem(id: number) {
 export async function saveSettings(partial: Record<string, unknown>) {
   await guard();
   await updateSettings(partial);
+  revalidatePath("/admin");
+  revalidatePath("/");
+}
+
+// ---------- Módulos del panel ----------
+export async function saveModules(flags: Record<string, boolean>) {
+  const admin = await requireAdmin();
+  if (!admin.isSuperadmin) {
+    throw new Error("Solo el superadmin puede gestionar módulos.");
+  }
+  // Valida contra el registro: solo ids conocidos y valores booleanos.
+  const known = new Set(ADMIN_MODULES.map((m) => m.id));
+  const clean: Record<string, boolean> = {};
+  for (const [k, v] of Object.entries(flags ?? {})) {
+    if (known.has(k) && typeof v === "boolean") clean[k] = v;
+  }
+  for (const m of ADMIN_MODULES) {
+    if (m.required) clean[m.id] = true;
+  }
+  await updateSettings({ modules: clean });
   revalidatePath("/admin");
   revalidatePath("/");
 }

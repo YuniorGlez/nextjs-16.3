@@ -22,9 +22,11 @@ const HOME_SECTION_KEYS = [
 export function LandingBuilder({
   settings,
   menu,
+  hiddenKeys,
 }: {
   settings: Record<string, unknown>;
   menu: MenuCategory[];
+  hiddenKeys?: string[];
 }) {
   const rawLayout = settings.layout as { key: string; visible?: boolean }[] | undefined;
   const initialSections =
@@ -50,6 +52,7 @@ export function LandingBuilder({
       initialContent={initialContent}
       menu={menu}
       save={save}
+      hiddenKeys={hiddenKeys}
       title="Builder de la landing"
       description="Reordena, muestra u oculta secciones, edita el texto y sube fotos. Todo se aplica a la web al pulsar «Guardar»."
     />

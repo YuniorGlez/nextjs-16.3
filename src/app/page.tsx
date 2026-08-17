@@ -5,6 +5,8 @@ import { brandingCss, normalizeBranding } from "@/lib/branding";
 import { normalizeLegal } from "@/lib/legal";
 import { normalizeNav } from "@/lib/nav";
 import { siteConfig } from "@/lib/site";
+import { resolveModules } from "@/lib/admin-modules";
+import { SECTION_DEFS } from "@/lib/sections";
 import type { MenuCategory } from "@/lib/data";
 import {
   LandingFooter,
@@ -39,10 +41,17 @@ export default async function Home() {
     // BD no disponible — contenido por defecto
   }
 
+  const modules = resolveModules(settings.modules);
+
   const layout =
-    Array.isArray(settings.layout) && settings.layout.length
+    (Array.isArray(settings.layout) && settings.layout.length
       ? (settings.layout as SectionCfg[]).filter((s) => s.visible !== false)
-      : DEFAULT_LAYOUT.filter((s) => s.visible !== false);
+      : DEFAULT_LAYOUT.filter((s) => s.visible !== false)
+    ).filter((s) => {
+      // Secciones ligadas a un módulo del admin desactivado no se renderizan.
+      const def = SECTION_DEFS.find((d) => d.key === s.key);
+      return !def?.moduleId || modules[def.moduleId] !== false;
+    });
 
   const content = settings as unknown as LandingContent;
   const branding = normalizeBranding(settings.branding);

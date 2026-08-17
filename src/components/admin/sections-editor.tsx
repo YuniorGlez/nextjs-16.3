@@ -36,6 +36,7 @@ export function SectionsEditor({
   save,
   title,
   description,
+  hiddenKeys,
 }: {
   initialSections: { key: string; visible: boolean }[];
   initialContent: Record<string, unknown>;
@@ -46,18 +47,23 @@ export function SectionsEditor({
   ) => Promise<void>;
   title: string;
   description: string;
+  /** Keys de secciones ocultas (módulos desactivados): no se editan ni se añaden. */
+  hiddenKeys?: string[];
 }) {
   const router = useRouter();
   const saveState = useAdminSave();
   const toast = useToast();
 
+  const hidden = new Set(hiddenKeys ?? []);
   const initSections: Sect[] = initialSections.length
-    ? initialSections.map((l) => ({
-        key: l.key,
-        label: SECTION_DEFS.find((s) => s.key === l.key)?.label ?? l.key,
-        visible: l.visible !== false,
-      }))
-    : SECTION_DEFS.map((s) => ({ ...s, visible: true }));
+    ? initialSections
+        .filter((l) => !hidden.has(l.key))
+        .map((l) => ({
+          key: l.key,
+          label: SECTION_DEFS.find((s) => s.key === l.key)?.label ?? l.key,
+          visible: l.visible !== false,
+        }))
+    : SECTION_DEFS.filter((s) => !hidden.has(s.key)).map((s) => ({ ...s, visible: true }));
 
   const [sections, setSections] = useState<Sect[]>(initSections);
   const [content, setContent] = useState<Record<string, unknown>>(initialContent);
@@ -379,7 +385,9 @@ export function SectionsEditor({
     return null;
   }
 
-  const available = SECTION_DEFS.filter((d) => !sections.some((s) => s.key === d.key));
+  const available = SECTION_DEFS.filter(
+    (d) => !hidden.has(d.key) && !sections.some((s) => s.key === d.key),
+  );
 
   return (
     <div>

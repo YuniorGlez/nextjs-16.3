@@ -9,7 +9,12 @@ const password = process.env.ADMIN_PASSWORD ?? "Temporal1234!";
 const secret = process.env.ADMIN_SECRET ?? password;
 
 export type TokenPayload = { sub: number; ver: number; exp: number };
-export type AdminSession = { id: number; email: string; mustChangePassword: boolean };
+export type AdminSession = {
+  id: number;
+  email: string;
+  mustChangePassword: boolean;
+  isSuperadmin: boolean;
+};
 
 function b64url(buf: Buffer | string): string {
   return Buffer.from(buf).toString("base64url");
@@ -58,7 +63,12 @@ export async function getCurrentAdmin(): Promise<AdminSession | null> {
   if (!payload) return null;
   const admin = await getAdminById(payload.sub);
   if (!admin || admin.tokenVersion !== payload.ver) return null;
-  return { id: admin.id, email: admin.email, mustChangePassword: admin.mustChangePassword };
+  return {
+    id: admin.id,
+    email: admin.email,
+    mustChangePassword: admin.mustChangePassword,
+    isSuperadmin: admin.isSuperadmin,
+  };
 }
 
 export async function isAdmin(): Promise<boolean> {

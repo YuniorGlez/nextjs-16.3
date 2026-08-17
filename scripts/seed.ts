@@ -67,6 +67,7 @@ await sql`CREATE TABLE IF NOT EXISTS admins (
   password_hash TEXT NOT NULL,
   must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
   token_version INT NOT NULL DEFAULT 0,
+  is_superadmin BOOLEAN NOT NULL DEFAULT FALSE,
   last_login_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 )`;
@@ -168,6 +169,11 @@ const settings: Record<string, unknown> = {
     telefono: "+34 900 000 000",
     registro: "Inscrita en el Registro Mercantil de Madrid, Tomo 00000, Folio 0, Hoja M-000000",
     dominio: "tudominio.com",
+  },
+  modules: {
+    core: true,
+    carta: true,
+    contacto: true,
   },
 };
 

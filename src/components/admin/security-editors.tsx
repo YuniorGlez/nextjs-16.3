@@ -14,6 +14,7 @@ type AdminListItem = {
   id: number;
   email: string;
   mustChangePassword: boolean;
+  isSuperadmin: boolean;
   lastLoginAt: string | null;
 };
 
@@ -228,6 +229,11 @@ export function AdminsTable({
             <tr key={a.id}>
               <td>
                 {a.email}
+                {a.isSuperadmin && (
+                  <span className="admin-badge ml-2" style={{ verticalAlign: "middle" }}>
+                    superadmin
+                  </span>
+                )}
                 {a.id === currentId && (
                   <span className="admin-badge ml-2" style={{ verticalAlign: "middle" }}>
                     tú

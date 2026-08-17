@@ -1,13 +1,15 @@
 // Catálogo de secciones del builder (compartido entre admin y servidor).
 // Módulo plano sin "use client": puede importarse desde server actions y client.
+// `moduleId` enlaza una sección con su módulo del admin (si se desactiva el
+// módulo, la sección desaparece del builder y de la web).
 
-export const SECTION_DEFS: { key: string; label: string; icon: string }[] = [
+export const SECTION_DEFS: { key: string; label: string; icon: string; moduleId?: string }[] = [
   { key: "hero", label: "Héroe", icon: "🖼️" },
   { key: "cabecera", label: "Cabecera", icon: "📌" },
   { key: "texto", label: "Texto", icon: "📝" },
   { key: "destacados", label: "Destacados", icon: "⭐" },
   { key: "numeros", label: "Números", icon: "🔢" },
-  { key: "menu", label: "Menú", icon: "📖" },
+  { key: "menu", label: "Menú", icon: "📖", moduleId: "carta" },
   { key: "local", label: "Sobre nosotros", icon: "🏠" },
   { key: "galeria", label: "Galería", icon: "🖼️" },
   { key: "testimonios", label: "Testimonios", icon: "💬" },
