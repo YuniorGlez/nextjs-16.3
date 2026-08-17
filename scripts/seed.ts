@@ -1,76 +1,11 @@
-// Siembra la BD Neon con la tabla de settings + layout del CMS admin.
+// Siembra datos demo/default en una BD ya migrada.
 // Uso: bun --env-file=.env.local scripts/seed.ts
+// No ejecutar contra producción: este script hace UPSERT del contenido estándar.
 import { neon } from "@neondatabase/serverless";
 
 const url = process.env.DATABASE_URL;
 if (!url) throw new Error("DATABASE_URL no está. Ejecuta con --env-file=.env.local");
 const sql = neon(url);
-
-// Tablas del CMS (categorías/items opcionales para webs con carta/menú)
-await sql`CREATE TABLE IF NOT EXISTS categories (
-  id SERIAL PRIMARY KEY,
-  name TEXT NOT NULL,
-  emoji TEXT NOT NULL DEFAULT '',
-  sort_order INT NOT NULL DEFAULT 0
-)`;
-await sql`CREATE TABLE IF NOT EXISTS items (
-  id SERIAL PRIMARY KEY,
-  category_id INT NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  description TEXT NOT NULL DEFAULT '',
-  price TEXT NOT NULL DEFAULT '',
-  sort_order INT NOT NULL DEFAULT 0
-)`;
-await sql`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value JSONB NOT NULL)`;
-await sql`CREATE TABLE IF NOT EXISTS pages (
-  id SERIAL PRIMARY KEY,
-  slug TEXT NOT NULL UNIQUE,
-  name TEXT NOT NULL,
-  visible BOOLEAN NOT NULL DEFAULT TRUE,
-  sort_order INT NOT NULL DEFAULT 0,
-  seo JSONB NOT NULL DEFAULT '{}'::jsonb,
-  content JSONB NOT NULL DEFAULT '{}'::jsonb,
-  layout JSONB NOT NULL DEFAULT '[]'::jsonb,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-)`;
-// Historial de versiones por página: snapshot completo del estado de la página
-// en cada guardado (permite listar y restaurar versiones anteriores).
-await sql`CREATE TABLE IF NOT EXISTS page_versions (
-  id SERIAL PRIMARY KEY,
-  page_id INT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
-  snapshot JSONB NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-)`;
-// Redirecciones 301 de slugs: tabla independiente (sin FK a pages) para que
-// las redirecciones sobrevivan aunque se borre la página.
-await sql`CREATE TABLE IF NOT EXISTS page_redirects (
-  id SERIAL PRIMARY KEY,
-  from_slug TEXT NOT NULL UNIQUE,
-  to_slug TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-)`;
-// Bandeja de mensajes del formulario de contacto (sin FK: sobreviven a todo).
-await sql`CREATE TABLE IF NOT EXISTS contact_messages (
-  id SERIAL PRIMARY KEY,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL,
-  message TEXT NOT NULL,
-  read BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-)`;
-// Administradores del panel (multi-admin email+contraseña). El primer admin se
-// crea desde el login con ADMIN_PASSWORD si la tabla está vacía (bootstrap);
-// la gestión posterior se hace desde /admin/seguridad.
-await sql`CREATE TABLE IF NOT EXISTS admins (
-  id SERIAL PRIMARY KEY,
-  email TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
-  token_version INT NOT NULL DEFAULT 0,
-  is_superadmin BOOLEAN NOT NULL DEFAULT FALSE,
-  last_login_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-)`;
 
 const settings: Record<string, unknown> = {
   contacto: {

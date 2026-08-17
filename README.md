@@ -105,9 +105,49 @@ del proyecto en Vercel. Sin él, la subida avisa con un error claro.
 bun run dev        # servidor de desarrollo
 bun run build      # build de producción
 bun run start      # servidor de producción
-bun run lint       # ESLint
+bun run lint       # oxlint
 bun run typecheck  # tsc --noEmit
 ```
+
+## Migraciones de base de datos
+
+El esquema se evoluciona con migraciones forward-only versionadas. El seed no
+crea tablas: solo inserta datos demo/default y hace UPSERT de páginas estándar,
+por lo que no debe ejecutarse contra producción ni usarse para actualizar una
+base existente.
+
+```bash
+bun --env-file=.env.local run db:migrate         # aplica migraciones pendientes
+bun --env-file=.env.local run db:migrate:status  # muestra el estado
+bun --env-file=.env.local scripts/seed.ts        # datos demo, después de migrar
+```
+
+Cada migración vive en `scripts/migrations/` y exporta un objeto con este
+formato:
+
+```ts
+const migration = {
+  version: 2,
+  name: "add_example_column",
+  statements: ["ALTER TABLE example ADD COLUMN IF NOT EXISTS value TEXT"],
+};
+export default migration;
+```
+
+Para crear la siguiente migración, usa el próximo entero, escribe únicamente
+cambios aditivos y seguros para bases que ya contienen clientes, y añádela al
+array de `scripts/migrations/index.ts`. No cambies la versión ni el nombre de
+una migración aplicada, no reordenes migraciones y no incluyas secretos ni
+contenido de negocio. El runner crea `schema_migrations`, ejecuta todo en una
+transacción con bloqueo advisory, registra versión/nombre/fecha y deja la base
+sin cambios si falla una migración. Las migraciones se prueban sin Neon mediante
+un ejecutor SQL abstraído; este repositorio no afirma haber probado el flujo
+contra Neon.
+
+Para automatización, comprobar primero `db:migrate:status`, ejecutar después
+`db:migrate`, y revisar que no queden pendientes. Nunca uses el seed como
+sustituto del runner ni añadas rollback destructivo sin un diseño y pruebas
+específicos.
 
 ## Deploy
 
