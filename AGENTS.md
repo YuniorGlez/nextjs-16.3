@@ -113,6 +113,9 @@ src/
 Ver `.env.example` para referencia. Las reales están en `.env.local`:
 
 - `DATABASE_URL` — conexión NeonDB (PostgreSQL)
+- `ADMIN_PASSWORD` — contraseña de bootstrap del CMS: solo se usa mientras la tabla `admins` esté vacía; el primer login con email + ADMIN_PASSWORD crea el admin raíz
+- `ADMIN_SECRET` — secreto HMAC de las sesiones (por defecto = ADMIN_PASSWORD; cámbialo en producción)
+- `RESEND_API_KEY` — envío de avisos del formulario de contacto
 - `NEXT_PUBLIC_SITE_URL` — URL pública del sitio
 - `NEXT_PUBLIC_GA_ID` — Measurement ID de Google Analytics
 - `NEXT_PUBLIC_ANALYTICS_DEFAULT_CONSENT` — `"true"` para activar GA sin banner
@@ -168,15 +171,24 @@ of writing from scratch:
 El base incluye un CMS admin en /admin (panel oscuro con sidebar, dashboard, builder de landing, carta/prices opcional, contacto y textos) y es **responsive** (menú hamburguesa en móvil, sidebar drawer, editor en una columna).
 
 - **NeonDB es OBLIGATORIA en TODOS los proyectos** (aunque la web sea sencilla): en ella se guardan los textos de la landing y las imágenes, editables desde el CMS. No existe la opción "sin base de datos".
-- Acceso: /admin con password = env ADMIN_PASSWORD (por defecto `Temporal1234!`). Poner ADMIN_PASSWORD y DATABASE_URL en .env.local y en Vercel.
-- Sembrar BD: bun --env-file=.env.local scripts/seed.ts (crea tablas categories/items/settings + ajustes del builder).
+- Acceso: /admin con **email + contraseña** (multi-admin, tabla `admins`, hash scrypt en `src/lib/passwords.ts`). Bootstrap: con la tabla vacía, cualquier email válido + env ADMIN_PASSWORD crea el primer admin; después la auth es contra la BD y el env deja de servir. Gestionar admins (añadir con contraseña temporal y cambio forzado en el primer login, eliminar, revocar sesiones) y cambiar contraseña en /admin/seguridad. Sesiones: cookie HMAC `{sub, ver, exp}` revocable (token_version).
+- Sembrar BD: bun --env-file=.env.local scripts/seed.ts (crea tablas categories/items/settings/pages/page_versions/page_redirects/contact_messages/admins + ajustes del builder). OJO: el seed hace UPSERT de las 4 páginas estándar con contenido por defecto — para DDL aditivo en BD ya sembrada usar scripts inline (CREATE TABLE IF NOT EXISTS / ADD COLUMN IF NOT EXISTS), no el seed completo.
 - Datos editables desde el panel (hero, destacados, numeros, local, galeria, layout) guardados en settings; la web debe leerlos y renderizar por orden/visibilidad (ver src/app/page.tsx del proyecto ejemplo restaurante-bellavista).
 - Vercel Blob (subir imagenes): token BLOB_READ_WRITE_TOKEN via vercel blob create-store. Endpoint src/app/api/upload/route.ts ya listo (protegido con ADMIN). next.config.ts ya tiene remotePatterns de *.blob.vercel-storage.com.
 - Subida desde cliente: POST multipart a /api/upload devuelve {url}.
 - Skill de referencia: vercel-blob.
 
 - Branding desde el CMS: /admin/estilo guarda `settings.branding` (primary, font, radius). La web debe inyectar `brandingCss(settings.branding)` (`src/lib/branding.ts`) como <style> para repintar color/tipografia/radio (override de clases Tailwind amber).
-- Formulario de contacto con email: componente `src/components/contact-form.tsx` POSTea JSON a `/api/contact`, que envia con Resend (`RESEND_API_KEY` env). Destinatario `settings.contacto.email` o env `RESEND_TO`; remitente `RESEND_FROM` o sandbox. Anadir RESEND_API_KEY/RESEND_TO al .env.local y a Vercel.
+- Formulario de contacto: `src/components/contact-form.tsx` POSTea JSON a `/api/contact`. El mensaje se guarda SIEMPRE en la tabla `contact_messages` (bandeja en /admin/mensajes: leer/borrar) y se avisa por email con plantilla React Email (`src/emails/contact-notification.tsx`, deps @react-email/*). Destinatario/remitente configurables desde /admin/contacto: `settings.mensajes.to` > `settings.contacto.email` > env `RESEND_TO`; `settings.mensajes.from` > env `RESEND_FROM` > sandbox. Anadir RESEND_API_KEY al .env.local y a Vercel.
+
+## CMS — características añadidas
+
+- **Editor markdown seguro** en la sección Texto: `src/lib/markdown.ts` (parser propio sin dependencias, salida sanitizada; enlaces solo http(s)/mailto/#/relativas). Editor con toolbar y preview en `src/components/admin/markdown-editor.tsx`.
+- **Historial de versiones por página**: cada guardado crea un snapshot en `page_versions` (máx 20); restaurar desde el editor de página. Deshacer/rehacer local en el builder (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z/Y).
+- **Redirecciones 301**: al cambiar un slug se registra `page_redirects` (con encadenado a→b→c) y `proxy.ts` emite el 301 real (redirect() de página es 307 y permanentRedirect() 308 — el 301 solo es posible en proxy).
+- **Menú de navegación configurable**: `settings.nav` (editor en /admin/menu) — ítems de página o enlace externo, submenús sin JS (<details>), botón CTA destacado. Sin config, fallback al comportamiento actual.
+- **SEO por página**: OG image dinámica `/og/[slug]` (ImageResponse de `next/og`), breadcrumbs JSON-LD (BreadcrumbList, `src/lib/breadcrumbs.ts`), sitemap con `pages.updated_at` real.
+- **Seguridad**: rate-limit en memoria en /api/login (5/15 min por IP) y /api/upload (20/10 min por IP) → 429 + Retry-After; cabeceras de seguridad y CSP (solo producción) en `proxy.ts` (X-Content-Type-Options, Referrer-Policy, X-Frame-Options, Permissions-Policy, HSTS solo en dominio de producción). 'unsafe-inline' en script/style-src es necesario (RSC inline + Tailwind v4); siguiente paso: nonces.
 
 ## Imagenes y IA en el CMS — SIEMPRE presente
 
