@@ -113,6 +113,7 @@ const RIGHT = "M9 6l6 6-6 6";
 const SEARCH = "M21 21l-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z";
 const FILE = "M14 3v5a2 2 0 0 0 2 2h5M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z";
 const SCALE = "M12 3v18M5 7h14M6 7l-3 6a3 3 0 0 0 6 0L6 7ZM18 7l-3 6a3 3 0 0 0 6 0l-3-6ZM4 21h16";
+const IMAGE = "M3 3h18v18H3z M21 15l-3.1-3.1a2 2 0 0 0-2.8 0L6 21 M9 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z";
 
 /* ================= Nav ================= */
 const NAV = [
@@ -123,6 +124,7 @@ const NAV = [
   { href: "/admin/contacto", label: "Contacto", icon: CONTACT },
   { href: "/admin/contenido", label: "Textos y héroe", icon: SUN },
   { href: "/admin/seo", label: "SEO", icon: SEARCH },
+  { href: "/admin/imagenes", label: "Imágenes y IA", icon: IMAGE },
   { href: "/admin/legal", label: "Datos legales", icon: SCALE },
   { href: "/admin/estilo", label: "Estilo y marca", icon: PALETTE },
 ].map((n) => ({ ...n }));
@@ -200,6 +202,7 @@ const SEG_LABELS: Record<string, string> = {
   legal: "Datos legales",
   paginas: "Páginas",
   seo: "SEO",
+  imagenes: "Imágenes y IA",
   estilo: "Estilo y marca",
 };
 

@@ -27,10 +27,21 @@ export async function generateMetadata({
     const { getPageBySlug } = await import("@/lib/data");
     const page = await getPageBySlug(slug);
     if (!page || !page.visible) return { title: "Página no encontrada" };
+    const ogImage = page.seo.ogImage?.trim();
     return {
       title: page.seo.title || page.name,
       description: page.seo.description || siteConfig.description,
       alternates: { canonical: `/${page.slug}` },
+      ...(ogImage
+        ? {
+            openGraph: {
+              title: page.seo.title || page.name,
+              description: page.seo.description || siteConfig.description,
+              images: [{ url: ogImage, width: 1200, height: 630 }],
+            },
+            twitter: { card: "summary_large_image", images: [ogImage] },
+          }
+        : {}),
     };
   } catch {
     return { title: "Página no encontrada" };

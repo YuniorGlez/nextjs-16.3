@@ -1,43 +1,34 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { ImageCropDialog } from "@/components/admin/image-crop-dialog";
 
+/**
+ * Subida de imagen compacta (botón) con recorte + optimización automática.
+ * Mantiene la API histórica del base: onUploaded(url).
+ */
 export function BlobUploader({
   onUploaded,
   label = "Subir imagen",
   accept = "image/*",
+  aspect,
 }: {
   onUploaded: (url: string) => void;
   label?: string;
   accept?: string;
+  aspect?: number; // relación de recorte (undefined = libre)
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState("");
 
-  async function handleFile(file: File) {
+  function handleFile(f: File) {
     setError("");
-    if (!file.type.startsWith("image/")) {
+    if (!f.type.startsWith("image/")) {
       setError("El archivo debe ser una imagen.");
       return;
     }
-    setBusy(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.url) {
-        setError(data.error || "No se pudo subir la imagen.");
-        return;
-      }
-      onUploaded(data.url);
-      if (inputRef.current) inputRef.current.value = "";
-    } catch {
-      setError("Error de red al subir la imagen.");
-    } finally {
-      setBusy(false);
-    }
+    setFile(f);
   }
 
   return (
@@ -50,17 +41,27 @@ export function BlobUploader({
         onChange={(e) => {
           const f = e.target.files?.[0];
           if (f) handleFile(f);
+          if (inputRef.current) inputRef.current.value = "";
         }}
       />
       <button
         type="button"
         className="admin-btn admin-btn--primary admin-btn--sm"
-        disabled={busy}
         onClick={() => inputRef.current?.click()}
       >
-        {busy ? "Subiendo…" : `⬆ ${label}`}
+        ⬆ {label}
       </button>
       {error && <span className="text-sm text-red-400">{error}</span>}
+      <ImageCropDialog
+        key={file ? `${file.name}-${file.size}` : "none"}
+        file={file}
+        aspect={aspect}
+        onClose={() => setFile(null)}
+        onUploaded={(url) => {
+          onUploaded(url);
+          setFile(null);
+        }}
+      />
     </div>
   );
 }

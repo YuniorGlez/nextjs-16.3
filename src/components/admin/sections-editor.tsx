@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminSave, useToast } from "@/app/admin/shell";
-import { BlobUploader } from "@/components/admin/blob-uploader";
+import { ImageField } from "@/components/admin/image-field";
 import { SECTION_DEFS } from "@/lib/sections";
 import { siteConfig } from "@/lib/site";
 import type { MenuCategory } from "@/lib/data";
@@ -378,11 +378,13 @@ export function SectionsEditor({
             {selected === "hero" && (
               <div className="admin-panel-card p-4">
                 <h3 className="mb-3 font-semibold">📷 Imagen del héroe</h3>
-                <BlobUploader onUploaded={(url) => setObj("hero", hero, "imagen", url)} />
-                {hero.imagen ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={hero.imagen} alt="héroe" className="mt-3 max-h-32 w-full rounded-lg border border-white/10 object-cover" />
-                ) : null}
+                <ImageField
+                  value={hero.imagen ?? ""}
+                  onUploaded={(url) => setObj("hero", hero, "imagen", url)}
+                  onRemove={() => setObj("hero", hero, "imagen", "")}
+                  aspect={16 / 9}
+                  aiAspect="16:9"
+                />
                 <Field label="Etiqueta (badge superior)"><input className={inputCls} value={hero.titulo ?? ""} onChange={(e) => setObj("hero", hero, "titulo", e.target.value)} /></Field>
                 <Field label="Titular principal (H1)"><input className={inputCls} value={hero.h1 ?? ""} onChange={(e) => setObj("hero", hero, "h1", e.target.value)} /></Field>
                 <Field label="Subtítulo"><input className={inputCls} value={hero.subtitulo ?? ""} onChange={(e) => setObj("hero", hero, "subtitulo", e.target.value)} /></Field>
@@ -465,11 +467,14 @@ export function SectionsEditor({
             {selected === "local" && (
               <div className="admin-panel-card p-4">
                 <h3 className="mb-3 font-semibold">🏠 Sobre nosotros</h3>
-                <BlobUploader label="Imagen de la sección" onUploaded={(url) => setObj("local", local, "imagen", url)} />
-                {local.imagen ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={local.imagen} alt="local" className="mt-3 max-h-32 w-full rounded-lg border border-white/10 object-cover" />
-                ) : null}
+                <ImageField
+                  value={local.imagen ?? ""}
+                  onUploaded={(url) => setObj("local", local, "imagen", url)}
+                  onRemove={() => setObj("local", local, "imagen", "")}
+                  aspect={3 / 2}
+                  aiAspect="3:2"
+                  label="Imagen de la sección"
+                />
                 <Field label="Etiqueta"><input className={inputCls} value={local.etiqueta ?? ""} onChange={(e) => setObj("local", local, "etiqueta", e.target.value)} /></Field>
                 <Field label="Título"><input className={inputCls} value={local.titulo ?? ""} onChange={(e) => setObj("local", local, "titulo", e.target.value)} /></Field>
                 <Field label="Párrafo 1"><textarea className={`${inputCls} min-h-16`} value={local.parrafo1 ?? ""} onChange={(e) => setObj("local", local, "parrafo1", e.target.value)} /></Field>
@@ -483,7 +488,13 @@ export function SectionsEditor({
                 <Field label="Título"><input className={inputCls} value={str(galeria.titulo)} onChange={(e) => setObj("galeria", galeria, "titulo", e.target.value)} /></Field>
                 <Field label="Texto"><textarea className={`${inputCls} min-h-14`} value={str(galeria.texto)} onChange={(e) => setObj("galeria", galeria, "texto", e.target.value)} /></Field>
                 <h4 className="mb-2 mt-4 text-sm font-semibold text-amber-400">Fotos</h4>
-                <BlobUploader label="Subir foto a la galería" onUploaded={addFoto} />
+                <ImageField
+                  value=""
+                  onUploaded={addFoto}
+                  aspect={4 / 3}
+                  aiAspect="4:5"
+                  label="Añadir foto a la galería"
+                />
                 <div className="mt-3 grid grid-cols-4 gap-2">
                   {galFotos.map((f) => (
                     <div key={f} className="relative">

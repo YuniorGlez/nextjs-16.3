@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { deletePageAction, updatePage } from "@/app/admin/actions";
 import { SectionsEditor } from "@/components/admin/sections-editor";
+import { ImageField } from "@/components/admin/image-field";
 import { useAdminSave } from "@/app/admin/shell";
 import { slugify } from "@/lib/slug";
 import type { DbPage } from "@/lib/data";
@@ -118,6 +119,26 @@ export function PageEditor({ page, menu }: { page: DbPage; menu: MenuCategory[] 
                   setSeo((s) => ({ ...s, description: e.target.value }));
                   markMeta();
                 }}
+              />
+            </label>
+            <label className="admin-field">
+              <span>Imagen para compartir (OG)</span>
+              <ImageField
+                value={seo.ogImage ?? ""}
+                onUploaded={(url) => {
+                  setSeo((s) => ({ ...s, ogImage: url }));
+                  markMeta();
+                }}
+                onRemove={() => {
+                  setSeo((s) => {
+                    const { ogImage: _drop, ...rest } = s;
+                    return rest;
+                  });
+                  markMeta();
+                }}
+                aspect={1200 / 630}
+                aiAspect="16:9"
+                hint="1200×630 px. Aparece al compartir la página en redes. Recorte y optimización automáticos."
               />
             </label>
           </div>

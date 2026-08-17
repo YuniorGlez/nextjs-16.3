@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveSettings } from "@/app/admin/actions";
 import { useAdminSave, useToast } from "@/app/admin/shell";
+import { ImageField } from "@/components/admin/image-field";
 
 type S = Record<string, unknown>;
 
@@ -87,13 +88,15 @@ export function ContenidoEditor({ settings }: { settings: S }) {
   const local = (settings.local ?? {}) as Record<string, string>;
   const destacados = (settings.destacados ?? []) as { icon: string; titulo: string; texto: string }[];
   const numeros = (settings.numeros ?? []) as { n: string; t: string }[];
-  const galeria = (settings.galeria ?? {}) as Record<string, string>;
+  const galeria = (settings.galeria ?? {}) as Record<string, unknown>;
 
   const [h, setH] = useState<S>({ ...hero });
   const [l, setL] = useState<S>({ ...local });
   const [d, setD] = useState<S[]>(destacados.map((x) => ({ ...x })));
   const [n, setN] = useState<S[]>(numeros.map((x) => ({ ...x })));
   const [g, setG] = useState<S>({ ...galeria });
+
+  const galFotos = Array.isArray(g.fotos) ? g.fotos.filter((x): x is string => typeof x === "string") : [];
 
   const saveState = useAdminSave();
   const toast = useToast();
@@ -132,15 +135,14 @@ export function ContenidoEditor({ settings }: { settings: S }) {
       <section className="admin-section">
         <div className="admin-panel-card p-5">
           <h3 className="mb-3 font-semibold">🖼️ Imagen del héroe</h3>
-          <Field label="Fondo del héroe (ruta o URL de imagen)">
-            <input className={inputCls} value={String(h.imagen ?? "")} placeholder="/img/hero.jpg o https://…"
-              onChange={(e) => setField(setH, { ...h, imagen: e.target.value })} />
-          </Field>
-          <p className="mt-1 text-xs text-zinc-500">Puedes usar una imagen de public/img o una URL externa.</p>
-          {h.imagen ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={String(h.imagen)} alt="Héroe" className="mt-3 w-full max-h-48 rounded-lg object-cover border border-white/10" />
-          ) : null}
+          <ImageField
+            value={String(h.imagen ?? "")}
+            onUploaded={(url) => setField(setH, { ...h, imagen: url })}
+            onRemove={() => setField(setH, { ...h, imagen: "" })}
+            aspect={16 / 9}
+            aiAspect="16:9"
+            hint="Fondo del héroe: usa una imagen ancha (16:9). Se recorta y optimiza automáticamente al subir."
+          />
         </div>
 
         <div className="admin-panel-card p-5" style={{ marginTop: 16 }}>
@@ -182,6 +184,16 @@ export function ContenidoEditor({ settings }: { settings: S }) {
             <Field label="Título"><input className={inputCls} value={String(l.titulo ?? "")} onChange={(e) => setField(setL, { ...l, titulo: e.target.value })} /></Field>
             <Field label="Párrafo 1"><textarea className={`${inputCls} min-h-20`} value={String(l.parrafo1 ?? "")} onChange={(e) => setField(setL, { ...l, parrafo1: e.target.value })} /></Field>
             <Field label="Párrafo 2"><textarea className={`${inputCls} min-h-20`} value={String(l.parrafo2 ?? "")} onChange={(e) => setField(setL, { ...l, parrafo2: e.target.value })} /></Field>
+            <div className="admin-field" style={{ gridColumn: "1 / -1" }}>
+              <span>Imagen de la sección</span>
+              <ImageField
+                value={String(l.imagen ?? "")}
+                onUploaded={(url) => setField(setL, { ...l, imagen: url })}
+                onRemove={() => setField(setL, { ...l, imagen: "" })}
+                aspect={3 / 2}
+                aiAspect="3:2"
+              />
+            </div>
           </div>
         </div>
 
@@ -190,6 +202,29 @@ export function ContenidoEditor({ settings }: { settings: S }) {
           <div className="admin-form-grid">
             <Field label="Título"><input className={inputCls} value={String(g.titulo ?? "")} onChange={(e) => setField(setG, { ...g, titulo: e.target.value })} /></Field>
             <Field label="Texto"><textarea className={`${inputCls} min-h-16`} value={String(g.texto ?? "")} onChange={(e) => setField(setG, { ...g, texto: e.target.value })} /></Field>
+          </div>
+          <h4 className="mb-2 mt-4 text-sm font-semibold text-amber-400">Fotos</h4>
+          <ImageField
+            value=""
+            onUploaded={(url) => setField(setG, { ...g, fotos: [...galFotos, url] })}
+            aspect={4 / 3}
+            aiAspect="4:5"
+            label="Añadir foto a la galería"
+          />
+          <div className="mt-3 grid grid-cols-4 gap-2">
+            {galFotos.map((f) => (
+              <div key={f} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={f} alt="" className="h-20 w-full rounded object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setField(setG, { ...g, fotos: galFotos.filter((x) => x !== f) })}
+                  className="absolute right-1 top-1 rounded bg-red-600 px-1.5 text-xs text-white"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -244,8 +279,15 @@ export function SeoEditor({ settings }: { settings: S }) {
             <Field label="Título para compartir">
               <input className={inputCls} value={String(draft.ogTitle ?? "")} placeholder="Igual que el título SEO si lo dejas vacío" onChange={(e) => set("ogTitle", e.target.value)} />
             </Field>
-            <Field label="Imagen para compartir (URL)">
-              <input className={inputCls} value={String(draft.ogImage ?? "")} placeholder="https://…/og-image.png (1200×630)" onChange={(e) => set("ogImage", e.target.value)} />
+            <Field label="Imagen para compartir (OG)">
+              <ImageField
+                value={String(draft.ogImage ?? "")}
+                onUploaded={(url) => set("ogImage", url)}
+                onRemove={() => set("ogImage", "")}
+                aspect={1200 / 630}
+                aiAspect="16:9"
+                hint="1200×630 px (16:9). Recorte y optimización automáticos al subir."
+              />
             </Field>
             <Field label="Descripción para compartir">
               <textarea className={`${inputCls} min-h-20`} value={String(draft.ogDescription ?? "")} placeholder="Igual que la meta descripción si lo dejas vacío" onChange={(e) => set("ogDescription", e.target.value)} />

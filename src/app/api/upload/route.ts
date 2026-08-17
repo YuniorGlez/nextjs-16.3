@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { isAdmin } from "@/lib/auth";
+import { blobConfigured } from "@/lib/blob";
+import { optimizeImage } from "@/lib/optimize";
 
 export const runtime = "nodejs";
+
+const EXT_BY_TYPE: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "image/svg+xml": "svg",
+  "image/avif": "avif",
+};
 
 export async function POST(request: NextRequest) {
   if (!(await isAdmin())) {
@@ -21,12 +32,28 @@ export async function POST(request: NextRequest) {
   if (file.size > 8 * 1024 * 1024) {
     return NextResponse.json({ error: "La imagen supera 8 MB" }, { status: 413 });
   }
+  if (!blobConfigured()) {
+    return NextResponse.json(
+      {
+        error:
+          "Vercel Blob no está configurado. Crea un store con `npx vercel blob create-store` y añade BLOB_READ_WRITE_TOKEN a .env.local (ver /admin/imagenes).",
+      },
+      { status: 503 },
+    );
+  }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const blob = await put(`fotos/${Date.now()}-${safeName}`, buffer, {
+  let buffer = Buffer.from(await file.arrayBuffer());
+  // Optimización server-side (WebP, máx. 1920 px): red de seguridad para que
+  // cualquier imagen subida quede ligera aunque el cliente no la haya optimizado.
+  const optimized = await optimizeImage(buffer, file.type);
+  buffer = optimized.buffer;
+  const contentType = optimized.contentType;
+
+  const safeBase = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/\.[^.]+$/, "") || "imagen";
+  const ext = EXT_BY_TYPE[contentType] ?? "bin";
+  const blob = await put(`fotos/${Date.now()}-${safeBase}.${ext}`, buffer, {
     access: "public",
-    contentType: file.type,
+    contentType,
     addRandomSuffix: true,
   });
 

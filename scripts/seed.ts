@@ -51,7 +51,7 @@ const settings: Record<string, unknown> = {
     cta2: "Saber más",
     cta2Url: "#sobre-nosotros",
     ubicacion: "Ciudad · País",
-    imagen: "",
+    imagen: "/examples/hero-default.jpg",
   },
   destacados: [
     { icon: "✨", titulo: "Destacado 1", texto: "Describe tu primer servicio o producto." },
@@ -69,9 +69,13 @@ const settings: Record<string, unknown> = {
     titulo: "Tu marca, tu historia",
     parrafo1: "Cuenta en unas líneas qué haces y por qué importa.",
     parrafo2: "Añade más contexto, valores o un segundo párrafo.",
-    imagen: "",
+    imagen: "/examples/local-default.jpg",
   },
-  galeria: { titulo: "Galería", texto: "Fotos de tu negocio.", fotos: [] },
+  galeria: {
+    titulo: "Galería",
+    texto: "Fotos de tu negocio.",
+    fotos: ["/examples/g1.jpg", "/examples/g2.jpg", "/examples/g3.jpg", "/examples/g4.jpg"],
+  },
   testimonios: [
     { texto: "Un cliente feliz cuenta su experiencia con tu producto o servicio.", autor: "Nombre Apellido", rol: "Cargo · Empresa" },
     { texto: "Otro testimonio que refuerza tu credibilidad y resultados.", autor: "Nombre Apellido", rol: "Cargo · Empresa" },
@@ -107,7 +111,10 @@ const settings: Record<string, unknown> = {
     keywords: "",
     ogTitle: "",
     ogDescription: "",
-    ogImage: "",
+    ogImage: "/examples/og-default.jpg",
+  },
+  ai: {
+    openrouterApiKey: "",
   },
   legal: {
     razonSocial: "Tu Empresa S.L.",

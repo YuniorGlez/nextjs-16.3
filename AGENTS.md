@@ -177,3 +177,15 @@ El base incluye un CMS admin en /admin (panel oscuro con sidebar, dashboard, bui
 
 - Branding desde el CMS: /admin/estilo guarda `settings.branding` (primary, font, radius). La web debe inyectar `brandingCss(settings.branding)` (`src/lib/branding.ts`) como <style> para repintar color/tipografia/radio (override de clases Tailwind amber).
 - Formulario de contacto con email: componente `src/components/contact-form.tsx` POSTea JSON a `/api/contact`, que envia con Resend (`RESEND_API_KEY` env). Destinatario `settings.contacto.email` o env `RESEND_TO`; remitente `RESEND_FROM` o sandbox. Anadir RESEND_API_KEY/RESEND_TO al .env.local y a Vercel.
+
+## Imagenes y IA en el CMS — SIEMPRE presente
+
+El base incluye un sistema de imagenes completo para el CMS (subida, optimizacion e IA):
+
+- **Campo de imagen reutilizable**: `src/components/admin/image-field.tsx` (`ImageField`, client) — drag & drop (react-dropzone), recorte (react-easy-crop), pegar URL y boton de IA. Props: `value`, `onUploaded(url)`, `onRemove`, `aspect` (relacion de recorte, p.ej. `1200/630`), `aiAspect`, `allowAi`. Integrado en: SEO global (ogImage), Textos y heroe (hero/local/galeria), builder de paginas (hero/local/galeria) y pagina por pagina (seo.ogImage → metadata OG en `[slug]/page.tsx`).
+- **Recorte + optimizacion en cliente**: `src/lib/client-image.ts` (`cropImageToBlob`) → WebP max 1920 px antes de subir. `src/components/admin/blob-uploader.tsx` mantiene su API historica pero ahora tambien recorta/optimiza.
+- **Optimizacion server-side**: `/api/upload` re-encodea a WebP (sharp, calidad 80, max 1920 px) cualquier raster >300 KB (red de seguridad). Sharp ya viene como dependencia de Next — NO anadir de nuevo.
+- **IA con OpenRouter**: `src/lib/openrouter.ts` (solo server) — `getOpenRouterKey()` resuelve: `settings.ai.openrouterApiKey` (BD, editable en `/admin/imagenes`) > env `OPENROUTER_API_KEY`. `generateAiImage()` llama a `POST https://openrouter.ai/api/v1/images` (modelo `openai/gpt-image-2`). Para editar, la imagen de origen se baja server-side y se manda como **data URL** en `input_references` (OpenRouter rechaza URLs locales/privadas). Respuesta: `{data:[{b64_json, media_type}]}`.
+- **Rutas**: `/api/ai-image` (POST JSON, protegido con sesion admin; guarda en Blob carpeta `ia/`; sin Blob devuelve `dataUrl` temporal) y `/api/upload` (multipart → Blob `fotos/`, 8 MB max). Ambos dan errores claros si falta `BLOB_READ_WRITE_TOKEN`.
+- **Ejemplos**: `public/examples/` (imagenes genericas de ejemplo, usadas por el seed: ogImage, hero, local, galeria). Regenerar con `bun --env-file=.env.local scripts/gen-example-images.ts`. `scripts/seed.ts` incluye `settings.ai.openrouterApiKey = ""` (no seedear claves reales).
+- **IMPORTANTE**: `src/lib/ai-images.ts` tiene las constantes compartidas (AI_ASPECTS, AI_QUALITIES, prompts) SIN imports de server — importarlas desde componentes client. `src/lib/openrouter.ts` y `src/lib/blob.ts` son SOLO server (no importarlas en client components; arrastran DB/env).
