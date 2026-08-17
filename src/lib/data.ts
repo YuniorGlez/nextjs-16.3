@@ -1,4 +1,4 @@
-import { sql } from "@/lib/db";
+import { runDbTransaction, sql } from "@/lib/db";
 import { computeRedirectMoves, type RedirectMoves } from "@/lib/redirects";
 import { slugify } from "@/lib/slug";
 import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS, pageCacheTag, selectPublicSettings } from "@/lib/cache";
@@ -185,18 +185,65 @@ export async function upsertPage(input: {
       WHERE id = ${input.id}`;
     return input.id;
   }
-  const rows = (await sql`SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM pages`) as unknown as { n: number }[];
-  const next = rows[0];
-  const inserted = (await sql`INSERT INTO pages (slug, name, visible, sort_order, seo, content, layout,
+  const inserted = (await sql`WITH next_order AS (
+      SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM pages
+    )
+    INSERT INTO pages (slug, name, visible, sort_order, seo, content, layout,
       draft_slug, draft_name, draft_visible, draft_seo, draft_content, draft_layout, draft_updated_at,
       published_slug, published_name, published_visible, published_seo, published_content, published_layout, published_at)
-    VALUES (${slug}, ${input.name}, ${input.visible}, ${next.n},
+    SELECT ${slug}, ${input.name}, ${input.visible}, next_order.n,
       ${JSON.stringify(input.seo)}::jsonb, ${JSON.stringify(input.content)}::jsonb, ${JSON.stringify(input.layout)}::jsonb,
       ${slug}, ${input.name}, ${input.visible}, ${JSON.stringify(input.seo)}::jsonb, ${JSON.stringify(input.content)}::jsonb,
       ${JSON.stringify(input.layout)}::jsonb, now(), ${slug}, ${input.name}, ${input.visible},
-      ${JSON.stringify(input.seo)}::jsonb, ${JSON.stringify(input.content)}::jsonb, ${JSON.stringify(input.layout)}::jsonb, now())
+      ${JSON.stringify(input.seo)}::jsonb, ${JSON.stringify(input.content)}::jsonb, ${JSON.stringify(input.layout)}::jsonb, now()
+    FROM next_order
     RETURNING id`) as unknown as { id: number }[];
   return inserted[0].id;
+}
+
+export type PageWriteInput = {
+  id: number;
+  slug: string;
+  name: string;
+  visible: boolean;
+  seo: Record<string, string>;
+  content: Record<string, unknown>;
+  layout: PageLayoutItem[];
+};
+
+/** Guarda snapshot, página, redirects encadenados y prune en un único commit. */
+export async function savePageTransaction(current: DbPage, input: PageWriteInput): Promise<void> {
+  const moves = current.slug === input.slug ? { updates: [], inserts: [] } : computeRedirectMoves(
+    current.slug,
+    input.slug,
+    await getPageRedirects(),
+  );
+  const snapshot: PageSnapshot = {
+    slug: current.slug,
+    name: current.name,
+    visible: current.visible,
+    sort_order: current.sortOrder,
+    seo: current.seo,
+    content: current.content,
+    layout: current.layout,
+  };
+  const queries = [
+    sql`INSERT INTO page_versions (page_id, snapshot) VALUES (${current.id}, ${JSON.stringify(snapshot)}::jsonb)`,
+    sql`UPDATE pages SET slug = ${input.slug}, name = ${input.name}, visible = ${input.visible},
+      seo = ${JSON.stringify(input.seo)}::jsonb, content = ${JSON.stringify(input.content)}::jsonb,
+      layout = ${JSON.stringify(input.layout)}::jsonb, updated_at = now(),
+      draft_slug = ${input.slug}, draft_name = ${input.name}, draft_visible = ${input.visible},
+      draft_seo = ${JSON.stringify(input.seo)}::jsonb, draft_content = ${JSON.stringify(input.content)}::jsonb,
+      draft_layout = ${JSON.stringify(input.layout)}::jsonb, draft_updated_at = now() WHERE id = ${input.id}`,
+    ...moves.updates.map((u) => sql`UPDATE page_redirects SET to_slug = ${u.to} WHERE from_slug = ${u.from}`),
+    ...moves.inserts.map((i) => sql`INSERT INTO page_redirects (from_slug, to_slug) VALUES (${i.from}, ${i.to})
+      ON CONFLICT (from_slug) DO UPDATE SET to_slug = EXCLUDED.to_slug`),
+    sql`DELETE FROM page_versions WHERE page_id = ${input.id} AND id NOT IN (
+      SELECT id FROM page_versions WHERE page_id = ${input.id}
+      ORDER BY created_at DESC, id DESC LIMIT 20
+    )`,
+  ];
+  await runDbTransaction(queries);
 }
 
 export async function publishPage(id: number): Promise<void> {
@@ -235,13 +282,12 @@ export const getPublicPageRedirects = unstable_cache(getPageRedirects, ["public-
 });
 
 export async function applyRedirectMoves(moves: RedirectMoves) {
-  for (const u of moves.updates) {
-    await sql`UPDATE page_redirects SET to_slug = ${u.to} WHERE from_slug = ${u.from}`;
-  }
-  for (const i of moves.inserts) {
-    await sql`INSERT INTO page_redirects (from_slug, to_slug) VALUES (${i.from}, ${i.to})
-      ON CONFLICT (from_slug) DO UPDATE SET to_slug = EXCLUDED.to_slug`;
-  }
+  const queries = [
+    ...moves.updates.map((u) => sql`UPDATE page_redirects SET to_slug = ${u.to} WHERE from_slug = ${u.from}`),
+    ...moves.inserts.map((i) => sql`INSERT INTO page_redirects (from_slug, to_slug) VALUES (${i.from}, ${i.to})
+      ON CONFLICT (from_slug) DO UPDATE SET to_slug = EXCLUDED.to_slug`),
+  ];
+  if (queries.length > 0) await runDbTransaction(queries);
 }
 
 /**
@@ -370,10 +416,8 @@ export async function upsertCategory(input: {
     await sql`
       UPDATE categories SET name = ${input.name}, emoji = ${input.emoji} WHERE id = ${input.id}`;
   } else {
-    const rows = (await sql`SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM categories`) as unknown as { n: number }[];
-    const next = rows[0];
     await sql`INSERT INTO categories (name, emoji, sort_order)
-      VALUES (${input.name}, ${input.emoji}, ${next.n})`;
+      SELECT ${input.name}, ${input.emoji}, COALESCE(MAX(sort_order), -1) + 1 FROM categories`;
   }
 }
 
@@ -393,11 +437,9 @@ export async function upsertItem(input: {
       UPDATE items SET category_id = ${input.categoryId}, name = ${input.name},
         description = ${input.description}, price = ${input.price} WHERE id = ${input.id}`;
   } else {
-    const rows = (await sql`SELECT COALESCE(MAX(sort_order), -1) + 1 AS n
-      FROM items WHERE category_id = ${input.categoryId}`) as unknown as { n: number }[];
-    const next = rows[0];
     await sql`INSERT INTO items (category_id, name, description, price, sort_order)
-      VALUES (${input.categoryId}, ${input.name}, ${input.description}, ${input.price}, ${next.n})`;
+      SELECT ${input.categoryId}, ${input.name}, ${input.description}, ${input.price},
+        COALESCE(MAX(sort_order), -1) + 1 FROM items WHERE category_id = ${input.categoryId}`;
   }
 }
 
@@ -406,10 +448,9 @@ export async function removeItem(id: number) {
 }
 
 export async function updateSettings(partial: Settings) {
-  for (const [k, v] of Object.entries(partial)) {
-    await sql`INSERT INTO settings (key, value) VALUES (${k}, ${JSON.stringify(v)}::jsonb)
-      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
-  }
+  const queries = Object.entries(partial).map(([k, v]) => sql`INSERT INTO settings (key, value) VALUES (${k}, ${JSON.stringify(v)}::jsonb)
+      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`);
+  if (queries.length > 0) await runDbTransaction(queries);
 }
 
 /**
@@ -423,18 +464,21 @@ export async function saveMenu(
     items: { name: string; description: string; price: string }[];
   }[],
 ) {
-  await sql`TRUNCATE categories RESTART IDENTITY CASCADE`;
-  for (const c of cats) {
-    const rows = (
-      await sql`INSERT INTO categories (name, emoji, sort_order) VALUES (${c.name}, ${c.emoji}, 0) RETURNING id`
-    ) as unknown as { id: number }[];
-    const catId = rows[0].id;
-    for (let i = 0; i < c.items.length; i++) {
-      const it = c.items[i];
-      await sql`INSERT INTO items (category_id, name, description, price, sort_order)
-        VALUES (${catId}, ${it.name}, ${it.description}, ${it.price}, ${i})`;
-    }
-  }
+  const payload = JSON.stringify(cats);
+  const insert = sql`WITH input AS (
+      SELECT value, (ordinality - 1)::int AS sort_order
+      FROM jsonb_array_elements(${payload}::jsonb) WITH ORDINALITY
+    ), inserted_categories AS (
+      INSERT INTO categories (name, emoji, sort_order)
+      SELECT value->>'name', value->>'emoji', sort_order FROM input
+      RETURNING id, sort_order
+    )
+    INSERT INTO items (category_id, name, description, price, sort_order)
+    SELECT c.id, item.value->>'name', item.value->>'description', item.value->>'price', item.ordinality::int - 1
+    FROM input i
+    JOIN inserted_categories c USING (sort_order)
+    CROSS JOIN LATERAL jsonb_array_elements(i.value->'items') WITH ORDINALITY AS item(value, ordinality)`;
+  await runDbTransaction([sql`TRUNCATE categories RESTART IDENTITY CASCADE`, insert]);
 }
 
 // ---------- Bandeja de mensajes (formulario de contacto) ----------

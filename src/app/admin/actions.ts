@@ -20,13 +20,11 @@ import {
 import { hashPassword, validatePassword, verifyPassword } from "@/lib/passwords";
 import { getClientIp, loginLimiter } from "@/lib/rate-limit";
 import {
-  createPageVersion,
   deleteContactMessage,
   getPageById,
   getPageBySlug,
-  prunePageVersions,
   publishPage,
-  registerPageRedirect,
+  savePageTransaction,
   removeCategory,
   removeItem,
   removePage,
@@ -347,13 +345,9 @@ export async function updatePage(input: {
   if (other && other.id !== input.id) {
     throw new Error(`La URL /${slug} ya la usa otra página.`);
   }
-  // Snapshot del estado actual ANTES de guardar: cada versión es un estado
-  // previo al que se puede volver desde el historial.
+  // Snapshot, página, redirects y prune comparten el mismo commit HTTP de Neon.
   const current = await getPageById(input.id);
-  if (current) {
-    await createPageVersion(current);
-  }
-  await upsertPage({
+  const pageInput = {
     id: input.id,
     slug,
     name: input.name.trim() || "Página",
@@ -361,20 +355,12 @@ export async function updatePage(input: {
     seo: input.seo,
     layout: input.layout,
     content: input.content,
-  });
+  };
+  if (current) await savePageTransaction(current, pageInput);
+  else await upsertPage(pageInput);
   invalidatePublicPages(input.slug, slug, current?.slug ?? "");
-  await recordCurrentAdminAudit({ action: "page.update", entityType: "page", entityId: input.id, metadata: { slug, visible: input.visible } });
-  // Si cambió el slug, registrar redirección 301 del slug antiguo al nuevo
-  // (el proxy la emite en el edge). Un fallo aquí no debe romper el guardado.
-  if (current && current.slug !== slug) {
-    try {
-      await registerPageRedirect(current.slug, slug);
-    } catch (err) {
-      console.error("No se pudo registrar la redirección 301:", err);
-    }
-  }
-  await prunePageVersions(input.id, 20);
   if (current && current.slug !== slug) invalidatePublicRedirects();
+  await recordCurrentAdminAudit({ action: "page.update", entityType: "page", entityId: input.id, metadata: { slug, visible: input.visible } });
   revalidatePath("/admin/paginas");
   revalidatePath("/");
   revalidatePath(`/${slug}`);
@@ -402,8 +388,6 @@ export async function restorePageVersionAction(
   if (!snapshot) {
     return { ok: false, error: "La versión no existe." };
   }
-  // Guarda también el estado actual como versión, para poder deshacer la restauración.
-  await createPageVersion(current);
   // Conflicto de slug: si otra página ya lo usa, se restaura todo menos el slug.
   let slug = snapshot.slug;
   let slugChanged = false;
@@ -412,7 +396,7 @@ export async function restorePageVersionAction(
     slug = current.slug;
     slugChanged = true;
   }
-  await upsertPage({
+  await savePageTransaction(current, {
     id: pageId,
     slug,
     name: snapshot.name,
@@ -422,18 +406,8 @@ export async function restorePageVersionAction(
     content: snapshot.content,
   });
   invalidatePublicPages(current.slug, slug);
-  await recordCurrentAdminAudit({ action: "page.restore", entityType: "page", entityId: pageId, metadata: { versionId } });
-  // Si restaurar cambió el slug (volver a un slug anterior), registrar la
-  // redirección 301 desde el slug actual para no romper enlaces existentes.
-  if (slug !== current.slug) {
-    try {
-      await registerPageRedirect(current.slug, slug);
-    } catch (err) {
-      console.error("No se pudo registrar la redirección 301:", err);
-    }
-  }
-  await prunePageVersions(pageId, 20);
   if (slug !== current.slug) invalidatePublicRedirects();
+  await recordCurrentAdminAudit({ action: "page.restore", entityType: "page", entityId: pageId, metadata: { versionId } });
   revalidatePath("/admin/paginas");
   revalidatePath("/");
   revalidatePath(`/${slug}`);

@@ -1,4 +1,5 @@
 import { neon } from "@neondatabase/serverless";
+import { runTransaction } from "@/lib/transactions";
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -11,3 +12,9 @@ if (!databaseUrl) {
 export const sql = neon(databaseUrl);
 
 export type QueryResult<T = Record<string, unknown>> = T[];
+export type DbQuery = ReturnType<typeof sql>;
+
+/** Ejecuta queries Neon HTTP como una transacción no interactiva. */
+export function runDbTransaction<T>(queries: readonly DbQuery[], afterCommit?: () => void | Promise<void>): Promise<T> {
+  return runTransaction((batch) => sql.transaction(batch as DbQuery[]), queries, afterCommit) as Promise<T>;
+}
