@@ -88,6 +88,7 @@ export function routePermission(pathname: string): Permission {
   if (pathname.startsWith("/admin/carta")) return PERMISSIONS.menu;
   if (pathname.startsWith("/admin/contacto")) return PERMISSIONS.contact;
   if (pathname.startsWith("/admin/estilo")) return PERMISSIONS.branding;
+  if (pathname.startsWith("/admin/plantillas")) return PERMISSIONS.branding;
   if (pathname.startsWith("/admin/legal")) return PERMISSIONS.legal;
   if (pathname.startsWith("/admin/menu")) return PERMISSIONS.navigation;
   return PERMISSIONS.contentRead;

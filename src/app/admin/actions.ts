@@ -21,6 +21,7 @@ import { hashPassword, validatePassword, verifyPassword } from "@/lib/passwords"
 import { getClientIp, loginLimiter } from "@/lib/rate-limit";
 import {
   deleteContactMessage,
+  getSettings,
   getPageById,
   getPageBySlug,
   publishPage,
@@ -41,6 +42,7 @@ import {
 import { slugify } from "@/lib/slug";
 import { PAGE_DEFAULT_LAYOUT } from "@/lib/sections";
 import { ADMIN_MODULES } from "@/lib/admin-modules";
+import { applyTemplateToSettings, getTemplate, validateTemplateId } from "@/lib/templates";
 import { PERMISSIONS, isRole, sanitizePermissions, type Permission, type AdminRole } from "@/lib/rbac";
 import { recordCurrentAdminAudit } from "@/lib/audit";
 import { invalidatePublicMenu, invalidatePublicPages, invalidatePublicRedirects, invalidatePublicSettings } from "@/lib/cache";
@@ -267,6 +269,7 @@ export async function saveSettings(partial: Record<string, unknown>) {
   const settingPermissions: Record<string, Permission> = {
     seo: PERMISSIONS.seo, branding: PERMISSIONS.branding, contacto: PERMISSIONS.contact,
     mensajes: PERMISSIONS.contact, nav: PERMISSIONS.navigation, ai: PERMISSIONS.mediaAi,
+    template: PERMISSIONS.branding,
   };
   const keys = Object.keys(partial);
   if (keys.length === 0) await requirePermission(PERMISSIONS.contentWrite);
@@ -276,6 +279,27 @@ export async function saveSettings(partial: Record<string, unknown>) {
   await recordCurrentAdminAudit({ action: "settings.update", entityType: "settings", metadata: { keys } });
   revalidatePath("/admin");
   revalidatePath("/");
+}
+
+export type ApplyTemplateResult = { ok: true; template: string } | { ok: false; error: string };
+
+/** Carga la estructura del preset rellenando únicamente campos vacíos. */
+export async function applySectorTemplateAction(templateId: unknown): Promise<ApplyTemplateResult> {
+  await requirePermission(PERMISSIONS.branding);
+  const id = validateTemplateId(templateId);
+  const template = getTemplate(id);
+  if (!id || !template) return { ok: false, error: "La plantilla no existe." };
+  const current = await getSettings();
+  const next = applyTemplateToSettings(current, template);
+  const changes: Record<string, unknown> = { template: next.template, layout: next.layout };
+  for (const key of Object.keys(template.initialContent)) changes[key] = next[key];
+  await updateSettings(changes);
+  invalidatePublicSettings();
+  await recordCurrentAdminAudit({ action: "template.apply", entityType: "settings", metadata: { template: id, mode: "fill-empty" } });
+  revalidatePath("/admin/plantillas");
+  revalidatePath("/admin/landing");
+  revalidatePath("/");
+  return { ok: true, template: id };
 }
 
 // ---------- Módulos del panel ----------
