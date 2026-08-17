@@ -24,3 +24,48 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ---------------------------------------------------------------------------
+   Markdown ligero del CMS (sección «Texto»): estilos del HTML sanitizado.
+   El HTML lo genera renderMarkdown (src/lib/markdown.ts); aquí solo se dan
+   estilos de contenido: párrafos, listas, enlaces, negritas y cursivas.
+   --------------------------------------------------------------------------- */
+.markdown {
+  word-break: break-word;
+}
+
+.markdown > * + * {
+  margin-top: 1em;
+}
+
+.markdown p {
+  margin: 0;
+}
+
+.markdown ul,
+.markdown ol {
+  margin: 0;
+  padding-left: 1.5em;
+}
+
+.markdown ul {
+  list-style: disc;
+}
+
+.markdown ol {
+  list-style: decimal;
+}
+
+.markdown li {
+  margin: 0.25em 0;
+}
+
+.markdown a {
+  color: #d97706; /* amber-600 */
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markdown a:hover {
+  color: #f59e0b;
+}

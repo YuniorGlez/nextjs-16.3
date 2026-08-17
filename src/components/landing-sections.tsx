@@ -1,6 +1,7 @@
 import type { MenuCategory } from "@/lib/data";
 import { ContactForm } from "@/components/contact-form";
 import { fillLegal, normalizeLegal, type LegalData } from "@/lib/legal";
+import { renderMarkdown } from "@/lib/markdown";
 
 /* ---------- Tipos de contenido (espejo de lo que guarda el CMS) ---------- */
 
@@ -429,7 +430,11 @@ export function LandingTexto({ texto, legal }: { texto: TextoContent; legal?: Le
         )}
         <div className="mt-6 space-y-5 text-base leading-8 text-zinc-600 dark:text-zinc-400">
           {parrafos.map((p, i) => (
-            <p key={i}>{fillLegal(p, data)}</p>
+            <div
+              key={i}
+              className="markdown"
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(fillLegal(p, data)) }}
+            />
           ))}
         </div>
       </article>

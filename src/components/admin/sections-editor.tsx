@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminSave, useToast } from "@/app/admin/shell";
 import { ImageField } from "@/components/admin/image-field";
+import { MarkdownEditor } from "@/components/admin/markdown-editor";
+import { renderMarkdown } from "@/lib/markdown";
 import { SECTION_DEFS } from "@/lib/sections";
 import { siteConfig } from "@/lib/site";
 import type { MenuCategory } from "@/lib/data";
@@ -198,9 +200,9 @@ export function SectionsEditor({
           {textoParrafos.length === 0 ? (
             <div className="mt-2 text-[10px] text-zinc-500">Añade párrafos en el editor.</div>
           ) : (
-            <div className="mt-2 space-y-1.5">
+            <div className="markdown mt-2 text-[10px] leading-4 text-zinc-400">
               {textoParrafos.slice(0, 3).map((p, i) => (
-                <p key={i} className="text-[10px] leading-4 text-zinc-400">{p || "…"}</p>
+                <div key={i} dangerouslySetInnerHTML={{ __html: renderMarkdown(p) }} />
               ))}
             </div>
           )}
@@ -413,13 +415,8 @@ export function SectionsEditor({
                   <button type="button" className="admin-btn admin-btn--sm" onClick={addParrafo}>+ Añadir párrafo</button>
                 </div>
                 {textoParrafos.map((p, i) => (
-                  <div key={i} className="mb-2">
-                    <textarea
-                      className={`${inputCls} min-h-16`}
-                      value={p}
-                      placeholder={`Párrafo ${i + 1}`}
-                      onChange={(e) => setParrafo(i, e.target.value)}
-                    />
+                  <div key={i} className="mb-3">
+                    <MarkdownEditor value={p} placeholder={`Párrafo ${i + 1}`} onChange={(v) => setParrafo(i, v)} />
                     <button type="button" className="mt-1 text-xs text-red-400 hover:underline" onClick={() => removeParrafo(i)}>
                       Quitar párrafo
                     </button>
