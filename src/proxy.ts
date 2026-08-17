@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isProductionHost, platformDefaults } from "@/lib/site";
 import { buildSecurityHeaders } from "@/lib/security-headers";
+import { isPublicLocalePath, localeFromPath } from "@/lib/i18n";
 
 // Cliente neon creado de forma perezosa (evita lanzar en import si falta
 // DATABASE_URL; el driver HTTP de neon funciona en Node y en edge).
@@ -45,6 +46,22 @@ export async function proxy(request: NextRequest) {
     productionHost: platformDefaults.productionHost,
     isProductionBuild: process.env.NODE_ENV === "production",
   });
+
+  // Las URLs públicas localizadas se reescriben internamente a las rutas
+  // existentes. Admin, API y preview nunca pasan por este resolver.
+  if ((request.method === "GET" || request.method === "HEAD") && isPublicLocalePath(request.nextUrl.pathname)) {
+    const locale = localeFromPath(request.nextUrl.pathname);
+    if (locale) {
+      const internal = request.nextUrl.clone();
+      internal.pathname = request.nextUrl.pathname.slice(locale.length + 1) || "/";
+      const headers = new Headers(request.headers);
+      headers.set("x-cms-locale", locale);
+      const response = NextResponse.rewrite(internal, { request: { headers } });
+      for (const [name, value] of Object.entries(securityHeaders)) response.headers.set(name, value);
+      if (!isProduction) response.headers.set("X-Robots-Tag", "noindex, nofollow");
+      return response;
+    }
+  }
 
   // Redirecciones 301 de slugs del CMS (SEO): /slug-antiguo → /slug-nuevo.
   // Solo GET/HEAD de un segmento que parezca un slug; el resto pasa de largo.

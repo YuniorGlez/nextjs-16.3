@@ -6,6 +6,7 @@ import { isProductionHost } from "@/lib/site";
 import { resolveSiteConfig } from "@/lib/site-config";
 import { canonicalUrl, getSeoSettings, normalizeSeoSettings, parseKeywords, sanitizeSeoUrl } from "@/lib/seo";
 import { Providers } from "@/components/providers";
+import { alternatesForPath, normalizeI18nConfig, normalizeLocale } from "@/lib/i18n";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,6 +22,15 @@ export async function generateMetadata(): Promise<Metadata> {
   const headerList = await headers();
   const host = headerList.get("host") ?? "";
   const site = await resolveSiteConfig();
+  let i18n = normalizeI18nConfig(undefined);
+  try {
+    const { getPublicSettings } = await import("@/lib/data");
+    i18n = normalizeI18nConfig((await getPublicSettings()).i18n);
+  } catch {
+    // BD no disponible
+  }
+  const parsedLocale = normalizeLocale(headerList.get("x-cms-locale"), i18n.defaultLocale);
+  const currentLocale = i18n.enabledLocales.includes(parsedLocale) ? parsedLocale : i18n.defaultLocale;
   const isProduction = isProductionHost(host, site.productionHost);
 
   // SEO del CMS con fallback a la configuración efectiva del cliente.
@@ -45,7 +55,8 @@ export async function generateMetadata(): Promise<Metadata> {
     publisher: site.organization.name,
     keywords: seoKeywords,
     alternates: {
-      canonical: "/",
+      canonical: currentLocale === i18n.defaultLocale ? "/" : `/${currentLocale}`,
+      languages: alternatesForPath(site.url, "/", i18n),
     },
     openGraph: {
       type: "website",
@@ -107,14 +118,15 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const requestLocale = normalizeLocale((await headers()).get("x-cms-locale"));
   return (
     <html
-      lang="es"
+      lang={requestLocale}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">

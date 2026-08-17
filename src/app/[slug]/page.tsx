@@ -15,6 +15,8 @@ import {
   type LandingContent,
 } from "@/components/landing-sections";
 import type { MenuCategory } from "@/lib/data";
+import { getRequestLocale, LocaleSelector } from "@/components/locale-selector";
+import { alternatesForPath } from "@/lib/i18n";
 
 export const runtime = "nodejs";
 
@@ -25,8 +27,10 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   try {
-    const { getPublicPageBySlug } = await import("@/lib/data");
-    const page = await getPublicPageBySlug(slug);
+    const { getPublicSettings, getPublicLocalizedPageBySlug } = await import("@/lib/data");
+    const settings = await getPublicSettings();
+    const { locale, config } = await getRequestLocale(settings);
+    const page = await getPublicLocalizedPageBySlug(slug, locale, config.defaultLocale);
     if (!page || !page.visible) return { title: "Página no encontrada" };
     const site = await resolveSiteConfig();
     const seo = normalizeSeoSettings(page.seo, site.url);
@@ -37,7 +41,7 @@ export async function generateMetadata({
     return {
       title: sanitizeSeoText(title, 70),
       description: sanitizeSeoText(description, 200),
-      alternates: { canonical: canonicalUrl(site.url, `/${page.slug}`) },
+      alternates: { canonical: canonicalUrl(site.url, `/${page.slug}`), languages: alternatesForPath(site.url, `/${page.slug}`, config) },
       robots: { index: page.isPublished && page.visible, follow: page.isPublished && page.visible },
       openGraph: {
         type: "website",
@@ -69,7 +73,8 @@ export default async function SlugPage({
   try {
     const data = await import("@/lib/data");
     [settings, menu, pages] = await Promise.all([data.getPublicSettings(), data.getPublicMenu(), data.getPublicPages()]);
-    page = await data.getPublicPageBySlug(slug);
+    const requestLocale = await getRequestLocale(settings);
+    page = await data.getPublicLocalizedPageBySlug(slug, requestLocale.locale, requestLocale.config.defaultLocale);
   } catch {
     // BD no disponible
   }
@@ -77,6 +82,7 @@ export default async function SlugPage({
   if (!page || !page.visible) notFound();
 
   const site = await resolveSiteConfig(settings);
+  const { config } = await getRequestLocale(settings);
   const branding = normalizeBranding(settings.branding);
   const contacto = (settings.contacto ?? {}) as ContactoContent;
   const legal = normalizeLegal(settings.legal);
@@ -87,6 +93,7 @@ export default async function SlugPage({
       <style>{brandingCss(branding)}</style>
       <JsonLd site={site} />
       <BreadcrumbJsonLd siteUrl={site.url} name={page.name} slug={page.slug} />
+      <div className="mx-auto flex w-full max-w-7xl justify-end px-6 pt-4"><LocaleSelector pathname={`/${slug}`} config={config} /></div>
       <SiteNav pages={pages} brandName={site.name} nav={nav} />
       <SiteAnimations>
         <main id="contenido-principal">

@@ -8,6 +8,8 @@ import { resolveSiteConfig } from "@/lib/site-config";
 import { resolveModules } from "@/lib/admin-modules";
 import { SECTION_DEFS } from "@/lib/sections";
 import type { MenuCategory } from "@/lib/data";
+import { getRequestLocale } from "@/components/locale-selector";
+import { LocaleSelector } from "@/components/locale-selector";
 import {
   LandingFooter,
   LandingSections,
@@ -43,6 +45,7 @@ export default async function Home() {
 
   const modules = resolveModules(settings.modules);
   const site = await resolveSiteConfig(settings);
+  const { config } = await getRequestLocale(settings);
 
   const layout =
     (Array.isArray(settings.layout) && settings.layout.length
@@ -64,6 +67,7 @@ export default async function Home() {
     <>
       <style>{brandingCss(branding)}</style>
       <JsonLd site={site} />
+      <div className="mx-auto flex w-full max-w-7xl justify-end px-6 pt-4"><LocaleSelector pathname="/" config={config} /></div>
       <SiteNav pages={pages} brandName={site.name} nav={nav} />
       <SiteAnimations>
         <main id="contenido-principal">

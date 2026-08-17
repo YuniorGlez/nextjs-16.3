@@ -72,6 +72,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { href: "/admin/mensajes", label: "Mensajes", icon: CONTACT, moduleId: "contacto", permission: "messages.read" },
   { href: "/admin/contenido", label: "Textos y héroe", icon: SUN, moduleId: "core", permission: "content.read" },
   { href: "/admin/seo", label: "SEO", icon: SEARCH, moduleId: "core", permission: "seo.manage" },
+  { href: "/admin/idiomas", label: "Idiomas", icon: SEARCH, moduleId: "core", permission: "i18n.manage" },
   { href: "/admin/imagenes", label: "Imágenes y IA", icon: IMAGE, moduleId: "core", permission: "media.upload" },
   { href: "/admin/legal", label: "Datos legales", icon: SCALE, moduleId: "core", permission: "legal.manage" },
   { href: "/admin/estilo", label: "Estilo y marca", icon: PALETTE, moduleId: "core", permission: "branding.manage" },

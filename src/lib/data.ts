@@ -3,6 +3,7 @@ import { computeRedirectMoves, type RedirectMoves } from "@/lib/redirects";
 import { slugify } from "@/lib/slug";
 import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS, pageCacheTag, selectPublicSettings } from "@/lib/cache";
 import { unstable_cache } from "next/cache";
+import { resolvePageTranslation, type SupportedLocale } from "@/lib/i18n";
 
 export type DbCategory = {
   id: number;
@@ -76,6 +77,7 @@ export type DbPage = {
   draftUpdatedAt: string | null;
   publishedAt: string | null;
   isPublished: boolean;
+  translations: Record<string, unknown>;
 };
 
 type PageRow = {
@@ -85,6 +87,7 @@ type PageRow = {
   draft_visible?: boolean; draft_updated_at?: unknown;
   published_seo?: unknown; published_content?: unknown; published_layout?: unknown; published_name?: string;
   published_slug?: string; published_visible?: boolean; published_at?: unknown;
+  translations?: unknown;
 };
 
 function normalizePage(r: PageRow, mode: "draft" | "published" = "draft"): DbPage {
@@ -101,12 +104,14 @@ function normalizePage(r: PageRow, mode: "draft" | "published" = "draft"): DbPag
     draftUpdatedAt: r.draft_updated_at ? new Date(String(r.draft_updated_at)).toISOString() : null,
     publishedAt: r.published_at ? new Date(String(r.published_at)).toISOString() : null,
     isPublished: hasState ? r.published_visible !== false && r.published_at != null : !!r.visible,
+    translations: r.translations && typeof r.translations === "object" ? r.translations as Record<string, unknown> : {},
   };
 }
 
 const PAGE_SELECT = `id, slug, name, visible, sort_order, seo, content, layout, updated_at,
     draft_seo, draft_content, draft_layout, draft_name, draft_slug, draft_visible, draft_updated_at,
-    published_seo, published_content, published_layout, published_name, published_slug, published_visible, published_at`;
+    published_seo, published_content, published_layout, published_name, published_slug, published_visible, published_at,
+    translations`;
 
 export async function getPages(options: { published?: boolean } = {}): Promise<DbPage[]> {
   try {
@@ -154,6 +159,11 @@ export async function getPublicPageBySlug(slug: string): Promise<DbPage | null> 
     ["public-page-query", slug],
     { tags: [CACHE_TAGS.pages, pageCacheTag(slug)], revalidate: CACHE_REVALIDATE_SECONDS },
   )();
+}
+
+export async function getPublicLocalizedPageBySlug(slug: string, locale: SupportedLocale, fallback: SupportedLocale): Promise<DbPage | null> {
+  const page = await getPublicPageBySlug(slug);
+  return page ? resolvePageTranslation(page, page.translations, locale, fallback) : null;
 }
 
 /** Máximo updated_at de todas las páginas (última modificación del contenido). */

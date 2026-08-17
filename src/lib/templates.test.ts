@@ -64,7 +64,7 @@ describe("autorización de presets", () => {
 describe("migración de plantillas", () => {
   it("se incorpora como migración posterior a media library", async () => {
     const { migrations } = await import("../../scripts/migrations");
-    expect(migrations.at(-1)?.version).toBe(6);
+    expect(migrations.at(-1)?.version).toBe(7);
     const migration = migrations.at(-1);
     expect(migration?.statements[0]).toContain("ON CONFLICT (key) DO NOTHING");
   });
