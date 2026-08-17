@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { requirePermission } from "@/lib/auth";
 import { PERMISSIONS } from "@/lib/rbac";
+import { createMediaAsset } from "@/lib/media";
+import { recordCurrentAdminAudit } from "@/lib/audit";
 import { blobConfigured } from "@/lib/blob";
 import { optimizeImage } from "@/lib/optimize";
 import { getClientIp, uploadLimiter } from "@/lib/rate-limit";
@@ -71,5 +73,23 @@ export async function POST(request: NextRequest) {
     addRandomSuffix: true,
   });
 
-  return NextResponse.json({ url: blob.url });
+  const admin = await requirePermission(PERMISSIONS.mediaUpload);
+  try {
+    const asset = await createMediaAsset({
+      url: blob.url,
+      pathname: blob.pathname,
+      filename: `${safeBase}.${ext}`,
+      contentType,
+      bytes: buffer.byteLength,
+      createdBy: admin.id,
+    });
+    await recordCurrentAdminAudit({ action: "media.create", entityType: "media", entityId: asset.id, metadata: { filename: asset.filename } });
+    return NextResponse.json({ url: blob.url, asset });
+  } catch (error) {
+    // El Blob ya existe: no se simula rollback. El asset queda marcado como
+    // huérfano en auditoría para poder reconciliarlo/eliminarlo manualmente.
+    await recordCurrentAdminAudit({ action: "media.orphaned_blob", entityType: "media", metadata: { url: blob.url, pathname: blob.pathname } });
+    console.error("[media] blob subido pero no registrado", error);
+    return NextResponse.json({ error: "La imagen se subió, pero no pudo registrarse en la biblioteca. Conserva esta URL para reconciliación.", url: blob.url }, { status: 503 });
+  }
 }
