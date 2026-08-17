@@ -1,4 +1,4 @@
-import { siteConfig } from "@/lib/site";
+import { platformDefaults } from "@/lib/site";
 
 export type SeoSettings = {
   title: string;
@@ -56,5 +56,5 @@ export async function getSeoSettings(): Promise<SeoSettings> {
 }
 
 export function seoFallbackTitle(): string {
-  return `${siteConfig.name} | ${siteConfig.tagline}`;
+  return `${platformDefaults.name} | ${platformDefaults.tagline}`;
 }

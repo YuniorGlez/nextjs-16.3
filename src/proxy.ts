@@ -1,7 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { siteConfig } from "@/lib/site";
+import { isProductionHost, platformDefaults } from "@/lib/site";
 import { buildSecurityHeaders } from "@/lib/security-headers";
 
 // Cliente neon creado de forma perezosa (evita lanzar en import si falta
@@ -34,14 +34,15 @@ const SLUG_PATH_RE = /^\/[a-z0-9-]+$/;
 
 export async function proxy(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
-  const isProduction = host === siteConfig.productionHost;
+  // Proxy solo usa el invariante de plataforma: no puede consultar el CMS.
+  const isProduction = isProductionHost(host, platformDefaults.productionHost);
 
   // Cabeceras de seguridad en TODAS las respuestas que pasa el proxy
   // (páginas, redirects 301, no-prod...). HSTS solo en dominio de producción
   // y CSP solo en build de producción (ver src/lib/security-headers.ts).
   const securityHeaders = buildSecurityHeaders({
     host,
-    productionHost: siteConfig.productionHost,
+    productionHost: platformDefaults.productionHost,
     isProductionBuild: process.env.NODE_ENV === "production",
   });
 

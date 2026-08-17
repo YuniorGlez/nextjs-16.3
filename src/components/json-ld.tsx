@@ -1,7 +1,8 @@
-import { siteConfig } from "@/lib/site";
+import { effectiveSiteConfig, type EffectiveSiteConfig } from "@/lib/site";
 import { buildBreadcrumbJsonLd } from "@/lib/breadcrumbs";
 
 type Props = {
+  site?: EffectiveSiteConfig;
   name?: string;
   description?: string;
   url?: string;
@@ -9,17 +10,17 @@ type Props = {
   image?: string;
 };
 
-export function JsonLd({ name, description, url, logo, image }: Props = {}) {
+export function JsonLd({ site = effectiveSiteConfig, name, description, url, logo, image }: Props = {}) {
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": siteConfig.organization.type,
-    name: name || siteConfig.organization.name,
-    url: url || siteConfig.organization.url,
-    logo: logo || siteConfig.organization.logo,
-    description: description || siteConfig.description,
+    "@type": site.organization.type,
+    name: name || site.organization.name,
+    url: url || site.organization.url,
+    logo: logo || site.organization.logo,
+    description: description || site.description,
     image: image || undefined,
-    address: siteConfig.organization.address,
-    sameAs: siteConfig.organization.sameAs,
+    address: site.organization.address,
+    sameAs: site.organization.sameAs,
   };
 
   return (
@@ -31,8 +32,8 @@ export function JsonLd({ name, description, url, logo, image }: Props = {}) {
 }
 
 /** Breadcrumbs schema.org (Home > Página) para las rutas /[slug]. */
-export function BreadcrumbJsonLd({ name, slug }: { name: string; slug: string }) {
-  const jsonLd = buildBreadcrumbJsonLd({ siteUrl: siteConfig.url, name, slug });
+export function BreadcrumbJsonLd({ siteUrl, name, slug }: { siteUrl: string; name: string; slug: string }) {
+  const jsonLd = buildBreadcrumbJsonLd({ siteUrl, name, slug });
   return (
     <script
       type="application/ld+json"

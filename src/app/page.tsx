@@ -4,7 +4,7 @@ import { SiteAnimations } from "@/components/site-animations";
 import { brandingCss, normalizeBranding } from "@/lib/branding";
 import { normalizeLegal } from "@/lib/legal";
 import { normalizeNav } from "@/lib/nav";
-import { siteConfig } from "@/lib/site";
+import { resolveSiteConfig } from "@/lib/site-config";
 import { resolveModules } from "@/lib/admin-modules";
 import { SECTION_DEFS } from "@/lib/sections";
 import type { MenuCategory } from "@/lib/data";
@@ -42,6 +42,7 @@ export default async function Home() {
   }
 
   const modules = resolveModules(settings.modules);
+  const site = await resolveSiteConfig(settings);
 
   const layout =
     (Array.isArray(settings.layout) && settings.layout.length
@@ -62,21 +63,21 @@ export default async function Home() {
   return (
     <>
       <style>{brandingCss(branding)}</style>
-      <JsonLd />
-      <SiteNav pages={pages} brandName={siteConfig.name} nav={nav} />
+      <JsonLd site={site} />
+      <SiteNav pages={pages} brandName={site.name} nav={nav} />
       <SiteAnimations>
         <main>
           <LandingSections
             layout={layout}
             content={content}
             menu={menu}
-            brandName={siteConfig.name}
+            brandName={site.name}
             legal={legal}
           />
         </main>
         <LandingFooter
-          name={siteConfig.name}
-          tagline={siteConfig.tagline}
+          name={site.name}
+          tagline={site.tagline}
           pages={pages}
           contacto={contacto}
           legal={legal}

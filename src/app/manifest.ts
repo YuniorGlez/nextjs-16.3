@@ -1,15 +1,18 @@
 import type { MetadataRoute } from "next";
-import { siteConfig } from "@/lib/site";
+import { resolveSiteConfig } from "@/lib/site-config";
 
-export default function manifest(): MetadataRoute.Manifest {
+export const dynamic = "force-dynamic";
+
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const site = await resolveSiteConfig();
   return {
-    name: siteConfig.name,
-    short_name: siteConfig.shortName,
-    description: siteConfig.description,
+    name: site.name,
+    short_name: site.shortName,
+    description: site.description,
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",
-    theme_color: siteConfig.themeColor,
+    theme_color: site.themeColor,
     icons: [
       {
         src: "/favicon.ico",

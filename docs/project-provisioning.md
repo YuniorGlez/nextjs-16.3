@@ -38,7 +38,7 @@ Alternativamente, `--name`, `--short-name`, `--description`, `--url` y `--produc
 
 ## Archivos y límites de seguridad
 
-El CLI solo escribe `.provisioning/client.json` y `.provisioning/site-overrides.json`. Si ya existen con contenido distinto, falla y exige `--force`; si son idénticos, no hace nada. No modifica `src/lib/site.ts`, `package.json`, migraciones, assets ni `.env*`. Los overrides quedan preparados para una futura separación platform/client.
+El CLI solo escribe `.provisioning/client.json` y `.provisioning/site-overrides.json`. Si ya existen con contenido distinto, falla y exige `--force`; si son idénticos, no hace nada. No modifica `src/lib/site.ts`, `package.json`, migraciones, assets ni `.env*`. El loader server-side de `src/lib/site-config.ts` consume `site-overrides.json` (y usa `client.json` como fallback) con precedencia `defaults de plataforma < provisioning < settings.site/settings.client de BD`; no se importa el JSON mutable en el bundle de Next. La BD puede sobreescribir los campos que tenga. Si no hay BD, se mantienen los valores provisionados y, si tampoco hay archivo, los defaults seguros.
 
 `--migrate` ejecuta `bun run db:migrate`; `--seed` ejecuta `bun scripts/seed.ts`. Ambos requieren `DATABASE_URL` presente, pero el CLI nunca imprime su valor ni crea proyectos Neon. El seed hace UPSERT de datos demo y por ello nunca se ejecuta implícitamente. El CLI no crea credenciales, no solicita secretos, no llama a APIs cloud y no puede sustituir la revisión de producción.
 

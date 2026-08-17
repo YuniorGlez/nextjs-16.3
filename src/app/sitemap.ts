@@ -1,8 +1,11 @@
 import type { MetadataRoute } from "next";
-import { siteConfig } from "@/lib/site";
+import { resolveSiteConfig } from "@/lib/site-config";
 import { pageLastModified } from "@/lib/sitemap";
 
+export const dynamic = "force-dynamic";
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const site = await resolveSiteConfig();
   // La home refleja la última modificación del contenido del sitio
   // (MAX(updated_at) de pages); sin BD, hoy.
   let homeLastModified = new Date();
@@ -16,7 +19,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     for (const p of pages.filter((x) => x.visible)) {
       const lastModified = pageLastModified(p.updatedAt);
       entries.push({
-        url: `${siteConfig.url}/${p.slug}`,
+        url: `${site.url}/${p.slug}`,
         ...(lastModified ? { lastModified } : {}),
         changeFrequency: "monthly",
         priority: 0.8,
@@ -27,7 +30,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   entries.unshift({
-    url: siteConfig.url,
+    url: site.url,
     lastModified: homeLastModified,
     changeFrequency: "monthly",
     priority: 1,

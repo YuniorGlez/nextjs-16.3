@@ -8,7 +8,7 @@ import { MarkdownEditor } from "@/components/admin/markdown-editor";
 import { useHistory } from "@/hooks/use-history";
 import { renderMarkdown } from "@/lib/markdown";
 import { SECTION_DEFS } from "@/lib/sections";
-import { siteConfig } from "@/lib/site";
+import { platformDefaults } from "@/lib/site";
 import type { MenuCategory } from "@/lib/data";
 
 type T = Record<string, string>;
@@ -244,7 +244,7 @@ export function SectionsEditor({
           >
             <div className="px-4">
               <div className="text-[10px] uppercase tracking-[.3em] text-amber-400">{hero.titulo || "Etiqueta"}</div>
-              <div className="font-serif text-2xl font-bold">{hero.h1 || siteConfig.name}</div>
+              <div className="font-serif text-2xl font-bold">{hero.h1 || platformDefaults.name}</div>
               <div className="mt-1 text-xs text-zinc-300">{hero.subtitulo || "Subtítulo de tu negocio"}</div>
             </div>
           </div>

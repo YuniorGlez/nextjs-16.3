@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { siteConfig } from "@/lib/site";
+import { platformDefaults } from "@/lib/site";
 import { ADMIN_NAV, type AdminNavItem } from "@/lib/admin-modules";
 import {
   createContext,
@@ -110,7 +110,7 @@ for (const n of ADMIN_NAV) {
   if (seg) SEGMENT_LABELS[seg] = n.label;
 }
 
-const SIDEBAR_KEY = `${siteConfig.name}:admin:sidebar`;
+const SIDEBAR_KEY = `${platformDefaults.name}:admin:sidebar`;
 const INIT_SCRIPT = `var p=document.currentScript.parentElement,s="expanded";try{if(localStorage.getItem(${JSON.stringify(SIDEBAR_KEY)})==="rail")s="rail"}catch(e){}p.dataset.adminSidebar=s`;
 
 function Sidebar({
@@ -150,10 +150,10 @@ function Sidebar({
   return (
     <aside className={`admin-sidebar${open ? " admin-sidebar--open" : ""}`} ref={ref}>
       <div className="admin-sidebar-logo">
-        <Link href="/admin" aria-label={`${siteConfig.name} — Panel`} onClick={onClose}>
+        <Link href="/admin" aria-label={`${platformDefaults.name} — Panel`} onClick={onClose}>
           <span className="admin-sidebar-logo-mark" aria-hidden>⚙️</span>
           <span className="admin-sidebar-logo-text">
-            {siteConfig.name}
+            {platformDefaults.name}
             <span className="admin-sidebar-label">Backoffice</span>
           </span>
         </Link>

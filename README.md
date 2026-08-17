@@ -24,8 +24,9 @@ trade-offs) está en [`docs/design/design.md`](docs/design/design.md). Resumen:
   trade-off es un ecosistema con adopción menor que npm, aceptado para una
   plantilla whitelabel. Instead of un segundo lockfile, `bun.lock` es la
   única fuente de verdad y CI instala con `--frozen-lockfile`.
-- **Invariante principal**: `src/lib/site.ts` es el single source of truth
-  de SEO. Esta invariante debe mantenerse en todos los proyectos derivados.
+- **Separación de configuración**: `src/lib/site.ts` contiene defaults e invariantes
+  de plataforma; `src/lib/site-config.ts` resuelve la configuración efectiva del
+  cliente sin importar JSON mutable en el bundle.
 - **Por qué NeonDB**: Postgres serverless vía HTTP elimina la
   infraestructura de connection pooling. La consecuencia asumida es ~100ms
   de cold start en la primera query, aceptable para sitios de contenido.
@@ -41,8 +42,8 @@ Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 
 ## Al clonar para un nuevo proyecto
 
-1. Edita `src/lib/site.ts` — es el single source of truth para SEO: nombre,
-   tagline, descripción, keywords, dominio de producción, organización, etc.
+1. Usa el CLI de provisionamiento para generar la configuración del cliente;
+   no edites `src/lib/site.ts` para datos de un cliente.
 2. Edita `package.json` (`name`) con el nombre del nuevo proyecto.
 3. Edita `AGENTS.md` para describir el contexto del proyecto concreto.
 4. Copia `.env.example` a `.env.local` y rellena los valores reales.
@@ -163,6 +164,25 @@ bun run project:provision -- --config /ruta/cliente.json --migrate --json
 ```
 
 El seed nunca es implícito: requiere `--seed --allow-seed` y `DATABASE_URL`.
+
+### Configuración de plataforma y cliente
+
+`src/lib/site.ts` define los defaults del producto base y los invariantes
+técnicos (locale, color de tema y forma del documento). Los datos editables del
+cliente son nombre, tagline, descripción, URL, host de producción, contacto,
+branding y SEO. La resolución server-side aplica esta precedencia:
+
+```text
+defaults de plataforma < .provisioning/site-overrides.json < settings.site (BD)
+```
+
+`settings.client` y los campos directos de `settings` se aceptan como
+compatibilidad con instalaciones anteriores. El loader lee los JSON generados
+con `fs` en server components; nunca se importa un JSON mutable en el bundle.
+Si la BD o los archivos no están disponibles, se usan los defaults seguros.
+Layout, páginas, sitemap, robots, manifest y JSON-LD consumen la configuración
+efectiva. El proxy solo usa el host de plataforma porque no puede consultar el
+CMS; actualiza ese invariante al desplegar un dominio nuevo.
 
 
 ## Deploy

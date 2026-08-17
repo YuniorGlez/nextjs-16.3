@@ -6,7 +6,7 @@ import { SiteAnimations } from "@/components/site-animations";
 import { brandingCss, normalizeBranding } from "@/lib/branding";
 import { normalizeLegal } from "@/lib/legal";
 import { normalizeNav } from "@/lib/nav";
-import { siteConfig } from "@/lib/site";
+import { resolveSiteConfig } from "@/lib/site-config";
 import {
   LandingFooter,
   LandingSections,
@@ -29,11 +29,12 @@ export async function generateMetadata({
     const page = await getPageBySlug(slug);
     if (!page || !page.visible) return { title: "Página no encontrada" };
     const title = page.seo.title || page.name;
-    const description = page.seo.description || siteConfig.description;
+    const site = await resolveSiteConfig();
+    const description = page.seo.description || site.seo.description || site.description;
     const ogImage = page.seo.ogImage?.trim();
     // OG image por página: la manual del CMS gana; si no hay, se genera
     // dinámicamente en /og/[slug] con el título de la página.
-    const ogImageUrl = ogImage || `${siteConfig.url}/og/${page.slug}`;
+    const ogImageUrl = ogImage || `${site.url}/og/${page.slug}`;
     return {
       title,
       description,
@@ -72,6 +73,7 @@ export default async function SlugPage({
 
   if (!page || !page.visible) notFound();
 
+  const site = await resolveSiteConfig(settings);
   const branding = normalizeBranding(settings.branding);
   const contacto = (settings.contacto ?? {}) as ContactoContent;
   const legal = normalizeLegal(settings.legal);
@@ -80,22 +82,22 @@ export default async function SlugPage({
   return (
     <>
       <style>{brandingCss(branding)}</style>
-      <JsonLd />
-      <BreadcrumbJsonLd name={page.name} slug={page.slug} />
-      <SiteNav pages={pages} brandName={siteConfig.name} nav={nav} />
+      <JsonLd site={site} />
+      <BreadcrumbJsonLd siteUrl={site.url} name={page.name} slug={page.slug} />
+      <SiteNav pages={pages} brandName={site.name} nav={nav} />
       <SiteAnimations>
         <main>
           <LandingSections
             layout={page.layout}
             content={page.content as LandingContent}
             menu={menu}
-            brandName={siteConfig.name}
+            brandName={site.name}
             legal={legal}
           />
         </main>
         <LandingFooter
-          name={siteConfig.name}
-          tagline={siteConfig.tagline}
+          name={site.name}
+          tagline={site.tagline}
           pages={pages}
           contacto={contacto}
           legal={legal}

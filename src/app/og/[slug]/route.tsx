@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
-import { siteConfig } from "@/lib/site";
+import { resolveSiteConfig } from "@/lib/site-config";
 import { resolveOgTitle, truncateForOg } from "@/lib/og";
 
 // La imagen depende del título de la página (BD) → nunca prerenderizar.
@@ -34,6 +34,7 @@ export async function GET(
   }
 
   const title = truncateForOg(resolveOgTitle(page));
+  const site = await resolveSiteConfig();
 
   try {
     return new ImageResponse(
@@ -69,7 +70,7 @@ export async function GET(
                 color: "#f59e0b",
               }}
             >
-              {siteConfig.name}
+              {site.name}
             </div>
           </div>
           <div
