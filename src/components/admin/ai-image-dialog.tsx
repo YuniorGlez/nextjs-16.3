@@ -5,16 +5,26 @@ import {
   AI_ASPECTS,
   AI_QUALITIES,
   AI_PROMPT_SUGGESTIONS,
+  aiModelLabel,
   type AiAspect,
   type AiImageMode,
   type AiQuality,
 } from "@/lib/ai-images";
 import { dataUrlToFile, uploadImage } from "@/lib/client-image";
 
+type AiResult = {
+  model: string;
+  url?: string;
+  dataUrl?: string;
+  temporary?: boolean;
+  error?: string;
+};
+
 /**
- * Modal de IA: edita una imagen existente o crea una desde cero con
- * OpenRouter (openai/gpt-image-2). La llamada es server-side (/api/ai-image);
- * el resultado se guarda en Vercel Blob y se entrega con onResult(url).
+ * Modal de IA: edita una imagen existente o crea una desde cero. Se lanzan
+ * varios modelos en paralelo (server-side /api/ai-image) y el usuario elige
+ * cuál de las propuestas utiliza. La elegida se guarda en Vercel Blob y se
+ * entrega con onResult(url).
  */
 export function AiImageDialog({
   open,
@@ -37,15 +47,13 @@ export function AiImageDialog({
   const [quality, setQuality] = useState<AiQuality>("low");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [resultUrl, setResultUrl] = useState<string | null>(null);
-  const [resultDataUrl, setResultDataUrl] = useState<string | null>(null);
-  const [temporary, setTemporary] = useState(false);
+  const [results, setResults] = useState<AiResult[] | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
 
   function reset() {
     setError("");
-    setResultUrl(null);
-    setResultDataUrl(null);
-    setTemporary(false);
+    setResults(null);
+    setSelected(null);
   }
 
   async function generate() {
@@ -69,39 +77,17 @@ export function AiImageDialog({
         }),
       });
       const data = (await res.json().catch(() => ({}))) as {
-        url?: string;
-        dataUrl?: string;
-        temporary?: boolean;
+        results?: AiResult[];
         error?: string;
       };
-      if (!res.ok || (!data.url && !data.dataUrl)) {
-        setError(data.error || "No se pudo generar la imagen.");
+      if (!res.ok || !data.results || data.results.length === 0) {
+        setError(data.error || "No se pudo generar ninguna imagen.");
         return;
       }
-      if (data.url) {
-        setResultUrl(data.url);
-        setTemporary(false);
-        return;
-      }
-      // Sin Blob configurado: intentamos subir la data URL por /api/upload.
-      if (data.dataUrl) {
-        try {
-          const url = await uploadImage(dataUrlToFile(data.dataUrl, "ia.png"));
-          setResultUrl(url);
-          setTemporary(false);
-          return;
-        } catch (e) {
-          setResultDataUrl(data.dataUrl);
-          setTemporary(true);
-          setError(
-            e instanceof Error && e.message.includes("Blob")
-              ? `${e.message} La imagen generada no se podrá guardar hasta configurarlo.`
-              : (e instanceof Error ? e.message : "No se pudo guardar la imagen."),
-          );
-          return;
-        }
-      }
-      setError("Respuesta inesperada del servidor.");
+      setResults(data.results);
+      // Preseleccionamos la primera propuesta válida; el usuario puede cambiar.
+      const first = data.results.find((r) => r.url ?? r.dataUrl);
+      setSelected(first?.model ?? null);
     } catch {
       setError("Error de red al contactar con el servidor.");
     } finally {
@@ -109,7 +95,38 @@ export function AiImageDialog({
     }
   }
 
-  const preview = resultUrl ?? resultDataUrl;
+  async function useSelected() {
+    if (!selected) return;
+    const r = results?.find((x) => x.model === selected);
+    if (!r) return;
+    setBusy(true);
+    setError("");
+    try {
+      let finalUrl = r.url;
+      if (!finalUrl && r.dataUrl) {
+        // Sin Blob en el servidor: subimos la data URL elegida por /api/upload.
+        try {
+          finalUrl = await uploadImage(dataUrlToFile(r.dataUrl, "ia.png"));
+        } catch (e) {
+          setError(
+            e instanceof Error && e.message.includes("Blob")
+              ? `${e.message} La imagen elegida no se podrá guardar hasta configurarlo.`
+              : (e instanceof Error ? e.message : "No se pudo guardar la imagen."),
+          );
+          return;
+        }
+      }
+      if (!finalUrl) {
+        setError("La imagen seleccionada no está disponible.");
+        return;
+      }
+      onResult(finalUrl);
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!open) return null;
   const selectCls =
     "rounded-lg border border-white/15 bg-zinc-950 px-2 py-1.5 text-sm text-zinc-100 outline-none focus:border-amber-500";
@@ -118,7 +135,7 @@ export function AiImageDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="font-semibold text-zinc-100">✨ Imagen con IA (OpenRouter)</h3>
           <button type="button" className="text-sm text-zinc-400 hover:text-zinc-100" onClick={onClose}>
@@ -126,19 +143,50 @@ export function AiImageDialog({
           </button>
         </div>
 
-        {preview ? (
+        {results ? (
           <div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={preview} alt="Resultado IA" className="w-full rounded-xl border border-white/10" />
-            {temporary && (
-              <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-                ⚠️ Vercel Blob no está configurado: esta imagen solo está en la vista previa y no se podrá guardar.
-                Añade BLOB_READ_WRITE_TOKEN (ver /admin/imagenes).
-              </p>
-            )}
-            {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+            <p className="mb-3 text-xs text-zinc-400">
+              Se generaron <span className="text-zinc-200">{results.length}</span> propuestas con distintos
+              modelos. Haz clic en la que más te guste.
+            </p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {results.map((r) => {
+                const img = r.url ?? r.dataUrl;
+                const isSel = selected === r.model;
+                return (
+                  <div
+                    key={r.model}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => img && setSelected(r.model)}
+                    onKeyDown={(e) => {
+                      if ((e.key === "Enter" || e.key === " ") && img) setSelected(r.model);
+                    }}
+                    className={`overflow-hidden rounded-xl border bg-zinc-950 transition ${
+                      img ? "cursor-pointer" : "cursor-default"
+                    } ${isSel ? "border-amber-500 ring-2 ring-amber-500/40" : "border-white/10"}`}
+                  >
+                    {img ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={img} alt={`Propuesta de ${r.model}`} className="aspect-video w-full object-cover" />
+                    ) : (
+                      <div className="flex aspect-video w-full items-center justify-center p-3 text-center text-xs text-red-400">
+                        {r.error || "Sin resultado"}
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+                      <span className="truncate text-[11px] text-zinc-300" title={r.model}>
+                        {aiModelLabel(r.model)}
+                      </span>
+                      {isSel && <span className="shrink-0 text-[11px] font-semibold text-amber-400">Elegida</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
             <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
-              <button type="button" className="admin-btn admin-btn--sm" onClick={() => { reset(); }} disabled={busy}>
+              <button type="button" className="admin-btn admin-btn--sm" onClick={reset} disabled={busy}>
                 ↻ Cambiar prompt
               </button>
               <button type="button" className="admin-btn admin-btn--sm" onClick={generate} disabled={busy}>
@@ -147,13 +195,10 @@ export function AiImageDialog({
               <button
                 type="button"
                 className="admin-btn admin-btn--primary admin-btn--sm"
-                disabled={!resultUrl}
-                onClick={() => {
-                  if (resultUrl) onResult(resultUrl);
-                  onClose();
-                }}
+                disabled={busy || !selected}
+                onClick={useSelected}
               >
-                Usar esta imagen
+                {busy ? "Guardando…" : "Usar esta imagen"}
               </button>
             </div>
           </div>
@@ -229,7 +274,7 @@ export function AiImageDialog({
                   ))}
                 </select>
               </label>
-              <span className="text-xs text-zinc-600">Modelo: openai/gpt-image-2</span>
+              <span className="text-xs text-zinc-600">3 modelos en paralelo</span>
             </div>
 
             {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
@@ -241,7 +286,7 @@ export function AiImageDialog({
                 onClick={generate}
                 disabled={busy || !prompt.trim()}
               >
-                {busy ? "Generando… (puede tardar ~30 s)" : "✨ Generar imagen"}
+                {busy ? "Generando 3 imágenes… (hasta ~2 min)" : "✨ Generar 3 imágenes"}
               </button>
             </div>
           </div>
