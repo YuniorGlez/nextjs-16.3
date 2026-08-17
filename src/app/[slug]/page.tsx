@@ -85,7 +85,7 @@ export default async function SlugPage({
       <BreadcrumbJsonLd siteUrl={site.url} name={page.name} slug={page.slug} />
       <SiteNav pages={pages} brandName={site.name} nav={nav} />
       <SiteAnimations>
-        <main>
+        <main id="contenido-principal">
           <LandingSections
             layout={page.layout}
             content={page.content as LandingContent}

@@ -13,10 +13,17 @@ export async function PATCH(request: NextRequest, context: Context) {
   try { await requirePermission(PERMISSIONS.mediaUpload); } catch { return NextResponse.json({ error: "No autorizado" }, { status: 401 }); }
   const id = await idOf(context);
   if (!id) return NextResponse.json({ error: "ID no válido" }, { status: 400 });
-  const asset = await updateMediaAsset(id, sanitizeMediaInput(await request.json() as Record<string, unknown>));
-  if (!asset) return NextResponse.json({ error: "Asset no encontrado" }, { status: 404 });
-  await recordCurrentAdminAudit({ action: "media.update", entityType: "media", entityId: id });
-  return NextResponse.json({ asset });
+  const body = await request.json() as Record<string, unknown>;
+  const current = await getMediaAsset(id);
+  if (!current) return NextResponse.json({ error: "Asset no encontrado" }, { status: 404 });
+  try {
+    const asset = await updateMediaAsset(id, sanitizeMediaInput({ altText: body.altText ?? current.altText, title: body.title ?? current.title, folder: body.folder ?? current.folder, tag: body.tag ?? current.tag, metadata: body.metadata ?? current.metadata }, { decorative: body.decorative === true || body.altText === "" }));
+    if (!asset) return NextResponse.json({ error: "Asset no encontrado" }, { status: 404 });
+    await recordCurrentAdminAudit({ action: "media.update", entityType: "media", entityId: id });
+    return NextResponse.json({ asset });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Metadatos no válidos" }, { status: 400 });
+  }
 }
 
 export async function DELETE(request: NextRequest, context: Context) {

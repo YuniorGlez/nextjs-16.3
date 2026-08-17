@@ -66,7 +66,7 @@ export default async function Home() {
       <JsonLd site={site} />
       <SiteNav pages={pages} brandName={site.name} nav={nav} />
       <SiteAnimations>
-        <main>
+        <main id="contenido-principal">
           <LandingSections
             layout={layout}
             content={content}

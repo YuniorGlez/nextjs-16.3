@@ -2,6 +2,7 @@ import type { MenuCategory } from "@/lib/data";
 import { ContactForm } from "@/components/contact-form";
 import { fillLegal, normalizeLegal, type LegalData } from "@/lib/legal";
 import { renderMarkdown } from "@/lib/markdown";
+import { AccessibleImage } from "@/components/accessible-image";
 
 /* ---------- Tipos de contenido (espejo de lo que guarda el CMS) ---------- */
 
@@ -24,8 +25,9 @@ export type LocalContent = {
   parrafo1?: string;
   parrafo2?: string;
   imagen?: string;
+  imagenAlt?: string;
 };
-export type GaleriaContent = { titulo?: string; texto?: string; fotos?: string[] };
+export type GaleriaContent = { titulo?: string; texto?: string; fotos?: string[]; fotosAlt?: string[] };
 export type TestimonioItem = { texto?: string; autor?: string; rol?: string };
 export type FaqItem = { pregunta?: string; respuesta?: string };
 export type CtaContent = { titulo?: string; texto?: string; boton?: string; botonUrl?: string };
@@ -180,11 +182,11 @@ export function LandingLocal({ local }: { local: LocalContent }) {
         </div>
         <div data-reveal>
           {local.imagen ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <AccessibleImage
               src={local.imagen}
-              alt={titulo}
+              alt={str(local.imagenAlt) || titulo}
               className="aspect-[4/3] w-full rounded-3xl object-cover"
+              sizes="(min-width: 1024px) 50vw, 100vw"
             />
           ) : (
             <div className="aspect-[4/3] w-full rounded-3xl bg-gradient-to-br from-zinc-800 to-zinc-950" />
@@ -209,12 +211,12 @@ export function LandingGaleria({ galeria }: { galeria: GaleriaContent }) {
         </div>
         <div data-stagger className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {fotos.map((f, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <AccessibleImage
               key={i}
               src={f}
-              alt=""
+              alt={str(galeria.fotosAlt?.[i])}
               className="aspect-square w-full rounded-2xl object-cover"
+              sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
             />
           ))}
         </div>

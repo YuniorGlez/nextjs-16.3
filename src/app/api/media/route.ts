@@ -22,10 +22,10 @@ export async function POST(request: NextRequest) {
     const contentType = typeof body.contentType === "string" ? body.contentType : "application/octet-stream";
     const bytes = Number(body.bytes);
     if (!/^https?:\/\//.test(url) || !Number.isFinite(bytes) || bytes < 0 || bytes > 8 * 1024 * 1024) return NextResponse.json({ error: "Datos de media no válidos" }, { status: 400 });
-    const asset = await createMediaAsset({ url, pathname: typeof body.pathname === "string" ? body.pathname : null, filename, contentType, bytes, createdBy: admin.id });
+    const asset = await createMediaAsset({ url, pathname: typeof body.pathname === "string" ? body.pathname : null, filename, contentType, bytes, altText: body.altText, title: body.title, folder: body.folder, tag: body.tag, metadata: body.metadata, decorative: body.decorative === true || body.altText === undefined, createdBy: admin.id });
     await recordCurrentAdminAudit({ action: "media.create", entityType: "media", entityId: asset.id, metadata: { filename: asset.filename } });
     return NextResponse.json({ asset }, { status: 201 });
-  } catch { return NextResponse.json({ error: "No se pudo registrar el asset" }, { status: 500 }); }
+  } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "No se pudo registrar el asset" }, { status: error instanceof Error && error.message.includes("alternativo") ? 400 : 500 }); }
 }
 
 export function parseMediaMetadata(body: Record<string, unknown>) { return sanitizeMediaInput(body); }

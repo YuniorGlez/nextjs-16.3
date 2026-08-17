@@ -25,6 +25,22 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+.skip-link {
+  position: fixed;
+  left: 1rem;
+  top: 1rem;
+  z-index: 100;
+  transform: translateY(-200%);
+  border-radius: .5rem;
+  background: #f59e0b;
+  color: #09090b;
+  padding: .75rem 1rem;
+  font-weight: 700;
+}
+
+.skip-link:focus { transform: translateY(0); }
+:focus-visible { outline: 3px solid #fbbf24; outline-offset: 3px; }
+
 /* ---------------------------------------------------------------------------
    Markdown ligero del CMS (sección «Texto»): estilos del HTML sanitizado.
    El HTML lo genera renderMarkdown (src/lib/markdown.ts); aquí solo se dan

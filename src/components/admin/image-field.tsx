@@ -24,6 +24,8 @@ export function ImageField({
   aiAspect = "16:9",
   allowAi = true,
   hint,
+  altText,
+  onAltTextChange,
 }: {
   value: string;
   onUploaded: (url: string) => void;
@@ -33,6 +35,8 @@ export function ImageField({
   aiAspect?: string;
   allowAi?: boolean;
   hint?: string;
+  altText?: string;
+  onAltTextChange?: (value: string) => void;
 }) {
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
@@ -86,6 +90,7 @@ export function ImageField({
 
       <div
         {...getRootProps()}
+        aria-label={label ?? "Seleccionar imagen"}
         className={`cursor-pointer rounded-xl border border-dashed p-3 transition ${
           isDragActive
             ? "border-amber-500 bg-amber-500/10"
@@ -160,7 +165,8 @@ export function ImageField({
         </div>
       )}
 
-      {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+      {error && <p role="alert" className="mt-2 text-sm text-red-400">{error}</p>}
+      {onAltTextChange && <label className="mt-3 block text-xs text-zinc-400">Texto alternativo (vacío solo si es decorativa)<input className={`${inputCls} mt-1`} value={altText ?? ""} maxLength={500} onChange={(event) => onAltTextChange(event.target.value)} /></label>}
       {hint && !error && <p className="mt-2 text-xs text-zinc-500">{hint}</p>}
 
       <ImageCropDialog

@@ -42,9 +42,10 @@ function normalize(row: MediaRow): MediaAsset {
   };
 }
 
-export async function createMediaAsset(input: { url: string; pathname?: string | null; filename: string; contentType: string; bytes: number; width?: number | null; height?: number | null; createdBy?: number | null }): Promise<MediaAsset> {
-  const rows = await sql`INSERT INTO media_assets (url, pathname, filename, content_type, bytes, width, height, created_by)
-    VALUES (${input.url}, ${input.pathname ?? null}, ${(input.filename.trim().slice(0, 255) || "imagen")}, ${input.contentType}, ${input.bytes}, ${input.width ?? null}, ${input.height ?? null}, ${input.createdBy ?? null})
+export async function createMediaAsset(input: { url: string; pathname?: string | null; filename: string; contentType: string; bytes: number; width?: number | null; height?: number | null; altText?: unknown; title?: unknown; folder?: unknown; tag?: unknown; metadata?: unknown; decorative?: boolean; createdBy?: number | null }): Promise<MediaAsset> {
+  const mediaInput = sanitizeMediaInput(input, { decorative: input.decorative ?? input.altText === undefined });
+  const rows = await sql`INSERT INTO media_assets (url, pathname, filename, content_type, bytes, width, height, alt_text, title, folder, tag, metadata, created_by)
+    VALUES (${input.url}, ${input.pathname ?? null}, ${(input.filename.trim().slice(0, 255) || "imagen")}, ${input.contentType}, ${input.bytes}, ${input.width ?? null}, ${input.height ?? null}, ${mediaInput.altText}, ${mediaInput.title}, ${mediaInput.folder}, ${mediaInput.tag}, ${JSON.stringify(mediaInput.metadata)}::jsonb, ${input.createdBy ?? null})
     RETURNING *` as unknown as MediaRow[];
   return normalize(rows[0]);
 }
