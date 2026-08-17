@@ -33,9 +33,17 @@ export async function POST(request: NextRequest) {
   const quality = AI_QUALITIES.includes(body.quality as (typeof AI_QUALITIES)[number])
     ? (body.quality as string)
     : "low";
-  const imageUrl = typeof body.imageUrl === "string" ? body.imageUrl.trim() : "";
-  if (mode === "edit" && !/^https?:\/\/\S+$/.test(imageUrl)) {
-    return NextResponse.json({ error: "La imagen de origen no es una URL válida." }, { status: 400 });
+  const rawImageUrl = typeof body.imageUrl === "string" ? body.imageUrl.trim() : "";
+  // La URL de origen puede ser absoluta (https://…) o relativa (/img/foto.jpg
+  // en public/img). Las relativas se resuelven contra el origen de la petición
+  // para poder descargarlas server-side y mandarlas a OpenRouter.
+  let imageUrl = rawImageUrl;
+  if (mode === "edit" && rawImageUrl) {
+    if (rawImageUrl.startsWith("/")) {
+      imageUrl = new URL(rawImageUrl, request.nextUrl.origin).toString();
+    } else if (!/^https?:\/\/\S+$/.test(rawImageUrl)) {
+      return NextResponse.json({ error: "La imagen de origen no es una URL válida." }, { status: 400 });
+    }
   }
 
   try {
