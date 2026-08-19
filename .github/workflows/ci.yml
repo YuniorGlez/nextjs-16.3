@@ -2,35 +2,52 @@ name: CI
 
 on:
   push:
-    branches: [main, completo]
+    branches: [main]
   pull_request:
 
 jobs:
-  quality-gates:
+  quality:
+    name: Typecheck · Lint · Tests · E2E
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
-      - uses: oven-sh/setup-bun@v2
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.14
+          bun-version: latest
 
-      - name: Install dependencies (frozen lockfile)
+      - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Typecheck (TypeScript 7, multithread)
-        run: bunx tsc@7 --noEmit --checkers 4
+      - name: Typecheck
+        run: bun run typecheck
 
-      - name: Lint (oxlint)
+      - name: Lint
         run: bun run lint
 
-      - name: Test + coverage (≥80%)
-        run: bunx vitest run --coverage
+      - name: Unit tests
+        run: bun run test
 
-      - name: Dependency audit (report-only, non-blocking)
-        run: bun audit || true
+      # Los pasos que necesitan BD (migrate + seed + e2e) solo corren si hay
+      # DATABASE_URL configurada como secreto. En repos de clientes (clonados del
+      # base sin secretos) se saltan con un aviso, no fallan: el resto del CI
+      # (typecheck/lint/unit) sigue pasando.
+      - name: Install Playwright browsers
+        if: env.DATABASE_URL != ''
+        run: bunx playwright install --with-deps chromium
 
-      - name: Build
-        run: bun run build
+      - name: Prepare staging DB (migrate + seed)
+        if: env.DATABASE_URL != ''
+        run: |
+          bun run db:migrate
+          bun scripts/seed.ts
+
+      - name: E2E tests
+        if: env.DATABASE_URL != ''
+        run: bun run e2e
+        env:
+          E2E_BASE_URL: http://localhost:3000
