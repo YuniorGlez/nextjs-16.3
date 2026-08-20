@@ -36,10 +36,8 @@ jobs:
       # DATABASE_URL configurada como secreto. En repos de clientes (clonados del
       # base sin secretos) se saltan con un aviso, no fallan: el resto del CI
       # (typecheck/lint/unit) sigue pasando.
-      - name: Install Playwright browsers
-        if: env.DATABASE_URL != ''
-        run: bunx playwright install --with-deps chromium
-
+      # Bun.WebView en Linux usa el backend "chrome" por defecto; el runner de GH
+      # ya trae Chrome/Chromium instalados, no hace falta instalar navegador.
       - name: Prepare staging DB (migrate + seed)
         if: env.DATABASE_URL != ''
         run: |

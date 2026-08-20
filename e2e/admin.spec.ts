@@ -1,45 +1,60 @@
 // e2e/admin.spec.ts — Caminos del CMS admin que heredan TODAS las webs.
+// Migrado de Playwright a bun:test + Bun.WebView.
 // Login con ADMIN_PASSWORD (bootstrap del primer admin) → dashboard → páginas →
 // crear una página y abrir su editor (caza el bug de /admin/paginas/:id que daba 500).
-import { test, expect } from "@playwright/test";
+//
+// NOTA: el login del admin está protegido por rate-limit (5/15min por IP en
+// /api/login). Este test corre una única vez y no en bucle para no agotarlo.
+import { test, expect, beforeAll, afterAll } from "bun:test";
+import { nuevaView, esperaSelector, esperaTexto, BASE_URL } from "./lib";
+import { setupServer } from "./server";
 
 const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || "admin@e2e.local";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Temporal1234!";
 
-test.describe("CMS Admin", () => {
-  // El login del admin solo se prueba en desktop (evita duplicar logins y agotar
-  // el rate-limit de /api/login, 5/15min por IP).
-  test("login → dashboard → crear página → abrir editor (bug /admin/paginas/:id)", async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== "desktop", "solo en desktop");
-    // 1. Login
-    await page.goto("/admin");
-    await expect(page.getByPlaceholder("Email")).toBeVisible({ timeout: 15_000 });
-    await page.fill('input[name="email"]', ADMIN_EMAIL);
-    await page.fill('input[name="password"]', ADMIN_PASSWORD);
-    await page.click('button[type="submit"]');
+const server = setupServer();
 
-    // Tras login se recarga; esperamos la topbar del admin.
-    await expect(page.locator(".admin-topbar")).toBeVisible({ timeout: 20_000 });
+beforeAll(async () => {
+  await server.start();
+}, 90_000);
 
-    // 2. Ir a Páginas
-    await page.goto("/admin/paginas");
-    await expect(page.getByRole("heading", { name: "Páginas" })).toBeVisible({ timeout: 15_000 });
-
-    // 3. Crear una página nueva (slug único para el test).
-    const slug = `e2e-${Date.now()}`;
-    await page.fill('input[name="name"]', `Página E2E ${slug}`);
-    await page.fill('input[name="slug"]', slug);
-    await page.click('button[type="submit"]', { timeout: 10_000 });
-
-    // 4. createPage redirige al editor (/admin/paginas/<id>). Debe cargar sin 500
-    //    (caza el bug conocido: el editor daba "This page couldn't load").
-    await expect(page.getByRole("heading", { name: "Editar página" })).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator(".admin-topbar")).toBeVisible({ timeout: 15_000 });
-    // El editor debe renderizar sus secciones (no estar roto/vacío).
-    await expect(page.getByRole("heading", { name: "Secciones de la página" })).toBeVisible({ timeout: 15_000 });
-
-    // 5. Volver a la lista: la página creada debe aparecer.
-    await page.goto("/admin/paginas");
-    await expect(page.getByText(`Página E2E ${slug}`)).toBeVisible({ timeout: 15_000 });
-  });
+afterAll(async () => {
+  await server.stop();
 });
+
+test("login → dashboard → crear página → abrir editor (bug /admin/paginas/:id)", async () => {
+  await using view = nuevaView();
+
+  // 1. Login.
+  await view.navigate(`${BASE_URL}/admin`);
+  await esperaSelector(view, 'input[name="email"]');
+  await view.click('input[name="email"]');
+  await view.type(ADMIN_EMAIL);
+  await view.click('input[name="password"]');
+  await view.type(ADMIN_PASSWORD);
+  await view.click('button[type="submit"]', { timeout: 20000 });
+
+  // Tras login se recarga; esperamos la topbar del admin (indica sesión ok).
+  await esperaSelector(view, ".admin-topbar", 25000);
+
+  // 3. Crear una página nueva (slug único para el test), yendo directo a Páginas.
+  const slug = `e2e-${Date.now()}`;
+  await view.navigate(`${BASE_URL}/admin/paginas`);
+  await esperaSelector(view, 'input[name="name"]', 20000);
+  await view.click('input[name="name"]');
+  await view.type(`Página E2E ${slug}`);
+  await view.click('input[name="slug"]');
+  await view.type(slug);
+  await view.click('button[type="submit"]', { timeout: 10000 });
+
+  // createPage redirige al editor /admin/paginas/<id>. La ruta /admin/paginas/<id>
+  // debe cargar sin 500 (caza el bug conocido). Verificamos por el contenido real
+  // del editor (el routing del admin es client-side y no actualiza view.url fiable).
+  await esperaTexto(view, "Secciones de la página", 25000);
+  await esperaSelector(view, ".admin-topbar", 20000);
+
+  // 4. Volver a la lista: la página recién creada debe aparecer.
+  await view.navigate(`${BASE_URL}/admin/paginas`);
+  await esperaTexto(view, `Página E2E ${slug}`, 25000);
+  expect((await view.evaluate("document.title")) as string).not.toMatch(/500|error/i);
+}, 120_000);

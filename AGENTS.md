@@ -122,10 +122,13 @@ Ver `.env.example` para referencia. Las reales están en `.env.local`:
 - `NEXT_PUBLIC_GA_ID` — Measurement ID de Google Analytics
 - `NEXT_PUBLIC_ANALYTICS_DEFAULT_CONSENT` — `"true"` para activar GA sin banner
 
-## Tests e2e (Playwright) y CI — SIEMPRE presente
+## Tests e2e (bun:test + Bun.WebView) y CI — SIEMPRE presente
 
-El base incluye una **suite e2e de Playwright** (`e2e/`) que cubre los caminos críticos que
-heredan TODAS las webs de clientes:
+El base incluye una **suite e2e con bun:test + Bun.WebView** (`e2e/`, basada en la skill
+`~/.agents/skills/bun-webview/SKILL.md`) que cubre los caminos críticos que heredan TODAS las
+webs de clientes. Migrado de Playwright a Bun.WebView (Bun 1.4.0): el navegador headless es el
+integrado en el runtime (no se descarga nada), el runner es `bun:test` y el `next dev` se arranca
+solo en `e2e/server.ts` (Bun.WebView, a diferencia de Playwright, no gestiona el webServer).
 
 - `e2e/publico.spec.ts` — home renderiza (200 + contenido visible, incl. el fallback CSS de GSAP),
   todos los enlaces del nav/footer devuelven 200 con contenido no vacío, páginas legales estándar,
@@ -133,14 +136,18 @@ heredan TODAS las webs de clientes:
 - `e2e/admin.spec.ts` — login con `ADMIN_PASSWORD` (bootstrap del primer admin) → dashboard →
   crear página → abrir el editor (`/admin/paginas/:id`). Este test caza el bug de que el editor
   daba 500 (se arregló en `src/lib/preview.ts`: usaba `??` que no ignora `ADMIN_SECRET=""`; ahora
-  usa `||` para caer a `ADMIN_PASSWORD`). Solo corre en el proyecto `desktop` (evita agotar el
-  rate-limit de login, 5/15min por IP).
+  usa `||` para caer a `ADMIN_PASSWORD`). Corre una única vez (evita agotar el rate-limit de
+  login, 5/15min por IP).
+- Helpers: `e2e/lib.ts` (crear views, esperar selectores/textos, GET local) y `e2e/server.ts`
+  (arrancar/parar `bun run dev`, inyectando `.env.local` al subproceso).
 
 **Cómo correrlos:**
 ```bash
-bun run e2e           # suite completa (desktop + mobile)
-bunx playwright test e2e/publico.spec.ts --project=desktop   # solo público
-bunx playwright test e2e/admin.spec.ts --project=desktop    # solo admin
+bun run e2e                    # suite completa secuencial
+bun run e2e:parallel           # suite completa en paralelo
+bun test e2e/publico.spec.ts --timeout 30000   # solo público
+bun test e2e/admin.spec.ts --timeout 60000     # solo admin
+E2E_BACKEND=chrome bun run e2e # forzar paridad Chromium (default: webkit en macOS, chrome en Linux/CI)
 ```
 
 **Requisitos:** `.env.local` con `DATABASE_URL` (BD de staging) y `ADMIN_PASSWORD`. Antes de los
@@ -148,8 +155,9 @@ e2e hay que tener el esquema sembrado: `bun run db:migrate` + `bun scripts/seed.
 staging del base es el proyecto Neon `flat-wave-02565341`.
 
 **CI (GitHub Actions, `.github/workflows/ci.yml`):** en cada push a main y PR ejecuta
-`bun install` → `typecheck` → `lint` → `test` → (si hay BD) `playwright install chromium` →
-migrate+seed → `e2e`.
+`bun install` → `typecheck` → `lint` → `test` → (si hay BD) → migrate+seed → `e2e`. En Linux CI,
+Bun.WebView usa el backend `chrome` (el runner de GH ya trae Chrome), no hace falta instalar
+navegador como ocurría con Playwright.
 
 **IMPORTANTE para quien cree webs de clientes desde este base:** el CI es **resiliente**. Los pasos
 que necesitan base de datos (migrate + seed + e2e) solo corren si el repo tiene el secreto
