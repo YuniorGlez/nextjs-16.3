@@ -45,6 +45,8 @@ bun run lint         # oxlint (15 ficheros, ~24ms)
 bun run typecheck    # tsc --noEmit (TS7)
 bun run test         # vitest run
 bun run test:coverage # vitest con umbral de cobertura ≥80%
+bun run e2e          # Playwright (suite e2e: público + admin)
+bun run e2e:ui       # Playwright con UI interactiva
 ```
 
 ## Verificación por fichero (single-file)
@@ -119,6 +121,83 @@ Ver `.env.example` para referencia. Las reales están en `.env.local`:
 - `NEXT_PUBLIC_SITE_URL` — URL pública del sitio
 - `NEXT_PUBLIC_GA_ID` — Measurement ID de Google Analytics
 - `NEXT_PUBLIC_ANALYTICS_DEFAULT_CONSENT` — `"true"` para activar GA sin banner
+
+## Tests e2e (bun:test + Bun.WebView) y CI — SIEMPRE presente
+
+El base incluye una **suite e2e con bun:test + Bun.WebView** (`e2e/`, basada en la skill
+`~/.agents/skills/bun-webview/SKILL.md`) que cubre los caminos críticos que heredan TODAS las
+webs de clientes. Migrado de Playwright a Bun.WebView (Bun 1.4.0): el navegador headless es el
+integrado en el runtime (no se descarga nada), el runner es `bun:test` y el `next dev` se arranca
+solo en `e2e/server.ts` (Bun.WebView, a diferencia de Playwright, no gestiona el webServer).
+
+- `e2e/publico.spec.ts` — home renderiza (200 + contenido visible, incl. el fallback CSS de GSAP),
+  todos los enlaces del nav/footer devuelven 200 con contenido no vacío, páginas legales estándar,
+  POST `/api/contact` sin error, y viewport móvil sin overflow horizontal.
+- `e2e/admin.spec.ts` — login con `ADMIN_PASSWORD` (bootstrap del primer admin) → dashboard →
+  crear página → abrir el editor (`/admin/paginas/:id`). Este test caza el bug de que el editor
+  daba 500 (se arregló en `src/lib/preview.ts`: usaba `??` que no ignora `ADMIN_SECRET=""`; ahora
+  usa `||` para caer a `ADMIN_PASSWORD`). Corre una única vez (evita agotar el rate-limit de
+  login, 5/15min por IP).
+- Helpers: `e2e/lib.ts` (crear views, esperar selectores/textos, GET local) y `e2e/server.ts`
+  (arrancar/parar `bun run dev`, inyectando `.env.local` al subproceso).
+
+**Cómo correrlos:**
+```bash
+bun run e2e                    # suite completa secuencial
+bun run e2e:parallel           # suite completa en paralelo
+bun test e2e/publico.spec.ts --timeout 30000   # solo público
+bun test e2e/admin.spec.ts --timeout 60000     # solo admin
+E2E_BACKEND=chrome bun run e2e # forzar paridad Chromium (default: webkit en macOS, chrome en Linux/CI)
+```
+
+**Requisitos:** `.env.local` con `DATABASE_URL` (BD de staging) y `ADMIN_PASSWORD`. Antes de los
+e2e hay que tener el esquema sembrado: `bun run db:migrate` + `bun scripts/seed.ts`. La BD de
+staging del base es el proyecto Neon `flat-wave-02565341`.
+
+**CI (GitHub Actions, `.github/workflows/ci.yml`):** en cada push a main y PR ejecuta
+`bun install` → `typecheck` → `lint` → `test` → (si hay BD) → migrate+seed → `e2e`. En Linux CI,
+Bun.WebView usa el backend `chrome` (el runner de GH ya trae Chrome), no hace falta instalar
+navegador como ocurría con Playwright.
+
+**IMPORTANTE para quien cree webs de clientes desde este base:** el CI es **resiliente**. Los pasos
+que necesitan base de datos (migrate + seed + e2e) solo corren si el repo tiene el secreto
+`DATABASE_URL` configurado. En un repo de cliente clonado del base **sin** secretos, esos pasos se
+saltan con un aviso y el resto del CI (typecheck/lint/unit) sigue pasando — no falla. Para activar
+los e2e en un repo de cliente hay que añadir 2 secrets de GitHub:
+- `DATABASE_URL` → la BD Neon de ese proyecto (staging o la del cliente).
+- `ADMIN_PASSWORD` → la contraseña de bootstrap del admin.
+Añadirlos: `gh secret set DATABASE_URL --repo <owner>/<repo>` (pegar el valor) y lo mismo para
+`ADMIN_PASSWORD`. Sin ellos, el CI funciona igual pero sin e2e.
+
+## Issues, webhook al board y sincronización con upstream — IMPORTANTE
+
+**1. Las issues de GitHub entran al board de mission-control (webhook).** Cualquier issue que se abra
+en ESTE repo (o en cualquier repo de pedroarenes-blip) aparece automáticamente como tarea en el
+board de mission-control (CRM → Tareas). Si detectas un bug, ábrelo como issue con la etiqueta
+`bug` (mejora 03). El webhook del repo está activado; si creas un repo NUEVO, actívalo con:
+`cd ~/Documents/proyectos/mission-control && bun --env-file=.env.local run scripts/activar-webhook.ts <repo>`.
+(Nota: el webhook apunta a una URL de túnel cloudflared que cambia; el watchdog `verificar-tunel`
+lo re-apunta automáticamente.)
+
+**2. Este repo es un FORK de YuniorGlez/nextjs-16.3.** `origin` = nuestro repo
+(pedroarenes-blip/nextjs-16.3), `upstream` = el original de YuniorGlez. Puede haber mejoras en
+`upstream/main` que merezca la pena traer, y a veces las issues se resuelven aquí o en el original.
+Antes de empezar a trabajar (y de forma periódica) comprueba si hay novedades:
+
+```bash
+git fetch origin main && git fetch upstream main
+git log --oneline origin/main..upstream/main   # mejoras de YuniorGlez que aún no tenemos
+git log --oneline upstream/main..origin/main   # commits nuestros (PRs aceptados)
+```
+
+Si hay commits de `upstream/main` que merecen la pena (a juicio del agente), intégralos:
+`git merge upstream/main` (o un cherry-pick selectivo). Decisión de producto: pregunta a Pedro antes
+de traer cambios sustanciales del original que puedan afectar a las webs de clientes.
+
+**3. Revisa el board de mission-control por issues del repo.** Las issues abiertas en este repo, una
+vez llegadas al board, pueden resolverlas Iván u otros agentes automáticamente
+(despachador-fixes, mejora 03). No asumas que la resolución solo es tuya: revisa si ya hay una tarea
+creada y si hay agentes ya trabajando en ella antes de duplicar trabajo.
 
 ## Deploy en Vercel
 

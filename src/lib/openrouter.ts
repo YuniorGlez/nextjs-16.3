@@ -2,10 +2,10 @@
 // La clave se resuelve: settings.ai.openrouterApiKey (configurable desde
 // /admin/imagenes) > variable de entorno OPENROUTER_API_KEY.
 import type { AiImageMode } from "@/lib/ai-images";
-import { AI_ASPECTS, AI_QUALITIES } from "@/lib/ai-images";
+import { AI_ASPECTS, AI_QUALITIES, AI_IMAGE_MODELS } from "@/lib/ai-images";
 
 export type { AiImageMode };
-export { AI_ASPECTS, AI_QUALITIES };
+export { AI_ASPECTS, AI_QUALITIES, AI_IMAGE_MODELS };
 
 export class ApiError extends Error {
   status: number;
@@ -60,11 +60,13 @@ async function fetchImageAsDataUrl(url: string): Promise<string> {
 }
 
 /**
- * Genera o edita una imagen con OpenRouter (modelo openai/gpt-image-2).
+ * Genera o edita una imagen con OpenRouter.
+ * - `model`: modelo de imagen a usar (por defecto, el primero de AI_IMAGE_MODELS).
  * - mode "edit": usa input_references con la imagen de origen.
  * - mode "create": genera desde cero con el prompt.
  */
 export async function generateAiImage(input: {
+  model?: string;
   mode: AiImageMode;
   prompt: string;
   imageUrl?: string;
@@ -80,7 +82,7 @@ export async function generateAiImage(input: {
   }
 
   const body: Record<string, unknown> = {
-    model: "openai/gpt-image-2",
+    model: input.model ?? AI_IMAGE_MODELS[0],
     prompt: input.prompt,
     quality: input.quality ?? "low",
     background: "auto",

@@ -4,7 +4,13 @@ const PREVIEW_TTL_MS = 2 * 60 * 60 * 1000;
 const PREFIX = "v1";
 
 function secret(): string {
-  const value = process.env.PREVIEW_SECRET ?? process.env.ADMIN_SECRET ?? process.env.ADMIN_PASSWORD;
+  // Usa || (no ??) para ignorar cadenas vacías: con ADMIN_SECRET="" por defecto,
+  // debe caer a ADMIN_PASSWORD. ?? no ignora "" y rompía el editor de páginas (500).
+  const value =
+    process.env.PREVIEW_SECRET ||
+    process.env.ADMIN_SECRET ||
+    process.env.ADMIN_PASSWORD ||
+    "";
   if (!value) throw new Error("Falta PREVIEW_SECRET (o ADMIN_SECRET) para usar previews.");
   return value;
 }
