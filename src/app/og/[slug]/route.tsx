@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
 import { resolveSiteConfig } from "@/lib/site-config";
+import { getPageBySlug } from "@/lib/data";
 import { resolveOgTitle, truncateForOg } from "@/lib/og";
 
 // La imagen depende del título de la página (BD) → nunca prerenderizar.
@@ -23,7 +24,9 @@ export async function GET(
   let page: { name: string; seo: Record<string, string>; visible: boolean } | null =
     null;
   try {
-    const { getPageBySlug } = await import("@/lib/data");
+    // Import estático (interceptable por mock.module en tests en TODAS las
+    // plataformas; el dinámico dentro de try no se honra igual en Linux).
+    // El try/catch mantiene el 404 elegante si la BD no está disponible.
     page = await getPageBySlug(slug);
   } catch {
     // BD no disponible
