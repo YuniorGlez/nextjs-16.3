@@ -2,6 +2,14 @@ import { describe, expect, it, mock } from "bun:test";
 
 const getPageBySlug = mock((_slug: string) => Promise.resolve(null as unknown));
 
+// La ruta importa @/lib/data → que importa @/lib/db, el cual LANZA si no hay
+// DATABASE_URL (CI sin secretos). Se intercepta también db para que la suite
+// corra sin credenciales; solo data.ts consume estos dos exports en este grafo.
+mock.module("@/lib/db", () => ({
+  sql: (_strings: TemplateStringsArray, ..._values: unknown[]) => [],
+  runDbTransaction: async <T,>() => undefined as unknown as T,
+}));
+
 mock.module("@/lib/data", () => ({ getPageBySlug: getPageBySlug }));
 
 const [{ NextRequest }, { resolveOgTitle, truncateForOg }] = await Promise.all([
