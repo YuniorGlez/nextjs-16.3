@@ -38,7 +38,8 @@ Vercel. Clona este repo y adáptalo a las necesidades del proyecto concreto.
 ## Comandos
 
 ```bash
-bun run dev          # servidor de desarrollo (Turbopack)
+bun run dev          # servidor de desarrollo (Turbopack sobre Node; en Linux el runtime Bun
+                     # rompe externos de Turbopack — usar dev:bun solo en macOS)
 bun run build        # build de producción
 bun run start        # servidor de producción
 bun run lint         # oxlint (15 ficheros, ~24ms)
@@ -46,6 +47,7 @@ bun run typecheck    # tsc --noEmit (TS7)
 bun run test         # bun test (unitarios, 3.3x más rápido que vitest)
 bun run test:coverage # vitest run --coverage (cobertura: vitest sigue siendo mejor aquí)
 bun run e2e          # bun test + Bun.WebView (suite e2e: público + admin)
+bun run dev:bun      # dev bajo runtime Bun (2x arranque frío en macOS; NO usar en Linux/CI)
 ```
 
 ## Verificación por fichero (single-file)

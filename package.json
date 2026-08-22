@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "bun --bun next dev",
+    "dev": "next dev",
+    "dev:bun": "bun --bun next dev",
     "build": "next build",
     "start": "next start",
     "lint": "oxlint src",
