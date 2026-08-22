@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { mergeClientConfig, normalizeHost, normalizeUrl } from "@/lib/site";
 import { resolveSiteConfigSync } from "@/lib/site-config";
 

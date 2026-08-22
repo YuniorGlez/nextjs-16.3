@@ -1,6 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
-import { revalidateTag } from "next/cache";
-import {
+import { describe, expect, it, mock } from "bun:test";
+
+const revalidateTag = mock((_tag: string, _profile?: unknown) => {});
+
+mock.module("next/cache", () => ({ revalidateTag: revalidateTag }));
+
+const {
   CACHE_REVALIDATE_PROFILE,
   CACHE_TAGS,
   invalidatePublicContent,
@@ -8,9 +12,7 @@ import {
   isCacheablePublicQuery,
   pageCacheTag,
   selectPublicSettings,
-} from "@/lib/cache";
-
-vi.mock("next/cache", () => ({ revalidateTag: vi.fn() }));
+} = await import("@/lib/cache");
 
 describe("cache pública", () => {
   it("centraliza tags y crea tags de página deterministas", () => {
@@ -25,7 +27,17 @@ describe("cache pública", () => {
   });
 
   it("excluye secretos y configuración de correo de settings públicos", () => {
-    expect(selectPublicSettings({ ai: { openrouterApiKey: "private" }, mensajes: { to: "private" }, analytics: { enabled: true, measurementId: "G-ABC", extra: "discard" }, hero: { h1: "Hola" } })).toEqual({ analytics: { enabled: true, measurementId: "G-ABC", consentDefault: false }, hero: { h1: "Hola" } });
+    expect(
+      selectPublicSettings({
+        ai: { openrouterApiKey: "***" },
+        mensajes: { to: "private" },
+        analytics: { enabled: true, measurementId: "G-ABC", extra: "discard" },
+        hero: { h1: "Hola" },
+      }),
+    ).toEqual({
+      analytics: { enabled: true, measurementId: "G-ABC", consentDefault: false },
+      hero: { h1: "Hola" },
+    });
   });
 
   it("invalida páginas y slugs sin duplicados usando SWR de Next 16", () => {
@@ -37,7 +49,7 @@ describe("cache pública", () => {
   });
 
   it("permite invalidar el conjunto de contenido público de forma explícita", () => {
-    vi.mocked(revalidateTag).mockClear();
+    revalidateTag.mockClear();
     invalidatePublicContent({ settings: true, menu: true, pages: true, slugs: ["inicio"] });
     expect(revalidateTag).toHaveBeenCalledTimes(4);
   });

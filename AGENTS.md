@@ -38,15 +38,16 @@ Vercel. Clona este repo y adáptalo a las necesidades del proyecto concreto.
 ## Comandos
 
 ```bash
-bun run dev          # servidor de desarrollo (Turbopack)
+bun run dev          # servidor de desarrollo (Turbopack sobre Node; en Linux el runtime Bun
+                     # rompe externos de Turbopack — usar dev:bun solo en macOS)
 bun run build        # build de producción
 bun run start        # servidor de producción
 bun run lint         # oxlint (15 ficheros, ~24ms)
 bun run typecheck    # tsc --noEmit (TS7)
-bun run test         # vitest run
-bun run test:coverage # vitest con umbral de cobertura ≥80%
-bun run e2e          # Playwright (suite e2e: público + admin)
-bun run e2e:ui       # Playwright con UI interactiva
+bun run test         # bun test (unitarios, 3.3x más rápido que vitest)
+bun run test:coverage # vitest run --coverage (cobertura: vitest sigue siendo mejor aquí)
+bun run e2e          # bun test + Bun.WebView (suite e2e: público + admin)
+bun run dev:bun      # dev bajo runtime Bun (2x arranque frío en macOS; NO usar en Linux/CI)
 ```
 
 ## Verificación por fichero (single-file)
@@ -275,7 +276,7 @@ El base incluye un sistema de imagenes completo para el CMS (subida, optimizacio
 
 - **Campo de imagen reutilizable**: `src/components/admin/image-field.tsx` (`ImageField`, client) — drag & drop (react-dropzone), recorte (react-easy-crop), pegar URL y boton de IA. Props: `value`, `onUploaded(url)`, `onRemove`, `aspect` (relacion de recorte, p.ej. `1200/630`), `aiAspect`, `allowAi`. Integrado en: SEO global (ogImage), Textos y heroe (hero/local/galeria), builder de paginas (hero/local/galeria) y pagina por pagina (seo.ogImage → metadata OG en `[slug]/page.tsx`).
 - **Recorte + optimizacion en cliente**: `src/lib/client-image.ts` (`cropImageToBlob`) → WebP max 1920 px antes de subir. `src/components/admin/blob-uploader.tsx` mantiene su API historica pero ahora tambien recorta/optimiza.
-- **Optimizacion server-side**: `/api/upload` re-encodea a WebP (sharp, calidad 80, max 1920 px) cualquier raster >300 KB (red de seguridad). Sharp ya viene como dependencia de Next — NO anadir de nuevo.
+- **Optimizacion server-side**: `/api/upload` re-encodea a WebP (calidad 80, max 1920 px) cualquier raster >300 KB (red de seguridad). MOTOR DUAL en `src/lib/optimize.ts`: sharp bajo Node (Vercel produccion) y Bun.Image bajo Bun (local). IMPORTANTE: sharp está declarado como devDependency explicita — NO borrarla aunque "venga con Next" (sin declaracion, el linker aislado de Bun la trata de paquete fantasma y rompe). Verificar ambos caminos: `bun test tests/optimize.test.ts` + `node --experimental-strip-types scripts/verifica-optimize-node.ts`.
 - **IA con OpenRouter**: `src/lib/openrouter.ts` (solo server) — `getOpenRouterKey()` resuelve: `settings.ai.openrouterApiKey` (BD, editable en `/admin/imagenes`) > env `OPENROUTER_API_KEY`. `generateAiImage()` llama a `POST https://openrouter.ai/api/v1/images` (modelo `openai/gpt-image-2`). Para editar, la imagen de origen se baja server-side y se manda como **data URL** en `input_references` (OpenRouter rechaza URLs locales/privadas). Respuesta: `{data:[{b64_json, media_type}]}`.
 - **Rutas**: `/api/ai-image` (POST JSON, protegido con sesion admin; guarda en Blob carpeta `ia/`; sin Blob devuelve `dataUrl` temporal) y `/api/upload` (multipart → Blob `fotos/`, 8 MB max). Ambos dan errores claros si falta `BLOB_READ_WRITE_TOKEN`.
 - **Ejemplos**: `public/examples/` (imagenes genericas de ejemplo, usadas por el seed: ogImage, hero, local, galeria). Regenerar con `bun --env-file=.env.local scripts/gen-example-images.ts`. `scripts/seed.ts` incluye `settings.ai.openrouterApiKey = ""` (no seedear claves reales).

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { MigrationError, runMigrations, type Migration } from "@/lib/migrations/runner";
 
 type FakeDb = {

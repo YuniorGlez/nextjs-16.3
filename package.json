@@ -4,13 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:bun": "bun --bun next dev",
     "build": "next build",
     "start": "next start",
     "lint": "oxlint src",
     "typecheck": "tsc --noEmit",
     "check": "bun run --parallel lint typecheck test",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "bun test tests src scripts",
+    "test:watch": "bun test --watch tests src scripts",
     "test:coverage": "vitest run --coverage",
     "e2e": "bun test e2e --timeout 30000",
     "e2e:parallel": "bun test e2e --timeout 30000 --parallel",
@@ -50,7 +51,8 @@
     "prettier": "^3.9.6",
     "tailwindcss": "^4",
     "typescript": "7",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "sharp": "^0.35.3"
   },
   "ignoreScripts": [
     "sharp",

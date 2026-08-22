@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import {
   MAX_PASSWORD_LENGTH,
   MIN_PASSWORD_LENGTH,
