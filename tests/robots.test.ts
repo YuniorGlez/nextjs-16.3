@@ -1,19 +1,26 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, beforeEach, mock } from "bun:test";
 
-const mockHost = vi.hoisted(() => ({ value: "" }));
+// Estado del host simulado (sustituye a vi.hoisted).
+const state = { value: "" };
 
-vi.mock("next/headers", () => ({
+mock.module("next/headers", () => ({
   headers: async () => ({
-    get: (key: string) => (key === "host" ? mockHost.value : null),
+    get: (key: string) => (key === "host" ? state.value : null),
   }),
 }));
 
-import { siteConfig } from "@/lib/site";
-import robots from "@/app/robots";
+const [{ siteConfig }, { default: robots }] = await Promise.all([
+  import("@/lib/site"),
+  import("@/app/robots"),
+]);
 
 describe("robots()", () => {
+  beforeEach(() => {
+    state.value = "";
+  });
+
   it("bloquea todo el rastreo fuera de producción", async () => {
-    mockHost.value = "localhost:3000";
+    state.value = "localhost:3000";
     const result = await robots();
     expect(result).toEqual({
       rules: { userAgent: "*", disallow: "/" },
@@ -21,7 +28,7 @@ describe("robots()", () => {
   });
 
   it("permite el rastreo y publica sitemap en producción", async () => {
-    mockHost.value = siteConfig.productionHost;
+    state.value = siteConfig.productionHost;
     const result = await robots();
     expect(result.rules).toEqual({ userAgent: "*", allow: "/" });
     expect(result.sitemap).toBe(`${siteConfig.url}/sitemap.xml`);

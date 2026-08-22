@@ -1,12 +1,25 @@
-import { describe, expect, it, vi } from "vitest";
-import { NextRequest } from "next/server";
-import { resolveOgTitle, truncateForOg } from "@/lib/og";
+import { describe, expect, it, mock } from "bun:test";
+
+const getPageBySlug = mock((_slug: string) => Promise.resolve(null as unknown));
+
+mock.module("@/lib/data", () => ({ getPageBySlug: getPageBySlug }));
+
+const [{ NextRequest }, { resolveOgTitle, truncateForOg }] = await Promise.all([
+  import("next/server"),
+  import("@/lib/og"),
+]);
+
+const { GET } = await import("@/app/og/[slug]/route");
+
+function respondeUnaVez(pagina: unknown) {
+  getPageBySlug.mockImplementationOnce(() => Promise.resolve(pagina));
+}
 
 describe("resolveOgTitle", () => {
   it("usa seo.title si existe (recortado)", () => {
-    expect(
-      resolveOgTitle({ name: "Sobre nosotros", seo: { title: "  Conócenos  " } }),
-    ).toBe("Conócenos");
+    expect(resolveOgTitle({ name: "Sobre nosotros", seo: { title: "  Conócenos  " } })).toBe(
+      "Conócenos",
+    );
   });
 
   it("cae a name cuando no hay seo.title", () => {
@@ -38,22 +51,18 @@ describe("truncateForOg", () => {
 
 // ---------- Ruta /og/[slug] (GET) ----------
 // Se mockea la capa de datos para no tocar la BD real en tests.
-const mocks = vi.hoisted(() => ({ getPageBySlug: vi.fn() }));
-vi.mock("@/lib/data", () => ({ getPageBySlug: mocks.getPageBySlug }));
-
-const { GET } = await import("@/app/og/[slug]/route");
 
 describe("GET /og/[slug]", () => {
   const req = () => new NextRequest("https://example.com/og/sobre-nosotros");
 
   it("devuelve 404 si la página no existe", async () => {
-    mocks.getPageBySlug.mockResolvedValueOnce(null);
+    respondeUnaVez(null);
     const res = await GET(req(), { params: Promise.resolve({ slug: "no-existe" }) });
     expect(res.status).toBe(404);
   });
 
   it("devuelve 404 si la página está oculta", async () => {
-    mocks.getPageBySlug.mockResolvedValueOnce({
+    respondeUnaVez({
       id: 1,
       slug: "oculta",
       name: "Oculta",
@@ -69,13 +78,13 @@ describe("GET /og/[slug]", () => {
   });
 
   it("genera un PNG 1200×630 con cache corta para una página visible", async () => {
-    mocks.getPageBySlug.mockResolvedValueOnce({
+    respondeUnaVez({
       id: 2,
       slug: "sobre-nosotros",
       name: "Sobre nosotros",
       visible: true,
-      sortOrder: 1,
-      seo: { title: "" },
+      sortOrder: 0,
+      seo: {},
       content: {},
       layout: [],
       updatedAt: "2026-08-17T10:00:00.000Z",

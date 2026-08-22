@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { mediaFilename, mediaPagination, sanitizeMediaInput, sanitizeMediaMetadata } from "@/lib/media-validation";
 import migration from "../scripts/migrations/0005_media_library";
 

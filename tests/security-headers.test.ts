@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { buildSecurityHeaders } from "@/lib/security-headers";
 
 const PROD_HOST = "example.com";

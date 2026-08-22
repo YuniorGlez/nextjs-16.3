@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { normalizeNav, type NavPage } from "@/lib/nav";
 
 const pages: NavPage[] = [
