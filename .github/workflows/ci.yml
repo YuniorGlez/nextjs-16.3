@@ -20,7 +20,7 @@ jobs:
         with:
           # Pineada para que el lockfile no diverja entre local y CI
           # (ya rompió el CI el 15-ago-2026 con "latest"). Subirla a mano.
-          bun-version: 1.4.0
+          bun-version: 1.4.2
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
